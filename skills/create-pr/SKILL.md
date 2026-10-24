@@ -9,9 +9,9 @@ Read [references/pr-publishing.md](references/pr-publishing.md) for exact checkl
 
 ## Scope and preflight
 1. Publication requires the user's explicit request (`$create-pr`, or an equivalent clearly authorized PR-publish instruction). `$execute-tasks` does not itself authorize a PR. Do not merge, enable auto-merge, reimplement code, or fix unrelated CI. No worker agents.
-2. Read `AGENTS.md`, `CONTRIBUTING.md`, PR template, current branch/remote, intended base repo and branch, change diff, related issue. For OSS, confirm the head is the **user's fork branch** and the base is the **actual upstream repository**. Do not guess owner from `origin` alone.
+2. Read `AGENTS.md`, `CONTRIBUTING.md`, PR template, current branch/remote, intended base repo and branch, change diff, related issue. Locate the execute ledger via `git rev-parse --git-path agent-workflow/progress.json`, read its exact `plan_path`, and run sibling `execute-tasks/scripts/taskctl.py pr-evidence --plan <plan>`. Publish only the recorded feature branch to the recorded base branch; reject a branch/HEAD mismatch or stale/missing whole-plan evidence. For OSS, also confirm the head is the **user's fork branch** and the base is the **actual upstream repository**. Do not guess owner from `origin` alone.
 3. Verify exact issue completion: **fully resolved** → standalone `Closes owner/repo#123` (or `Closes #123` for same repo), **partially related** → `Refs ...`. A closing keyword in a stacked or non-default base may not close the issue automatically. Do not falsely promise closure.
-4. Use actual existing test results only; if missing or stale, mark unverified and report. Do not run new validation merely for PR writing. Check the head commit SHA and intended diff; if local source is dirty, report and resolve scope before pushing.
+4. Use the task and whole-plan receipts returned by `pr-evidence` as the validation source. Do not run new validation merely for PR writing or publish when that evidence is unavailable/stale; hand back to `$execute-tasks` for verification. Check the recorded head commit SHA and intended diff; if local source is dirty, report and resolve scope before pushing.
 5. Ask only for ambiguous branch/base, target, issue identity, or user authorization. No speculative fork creation or force push.
 
 ## Publish exactly once
