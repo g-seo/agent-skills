@@ -7,12 +7,15 @@ git status --short
 git branch --show-current
 git remote -v
 git log -1 --format='%H %s'
+git rev-parse --git-path agent-workflow/progress.json
+# Read plan_path from that ledger, then:
+python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py pr-evidence --plan <plan-path>
 gh auth status
 gh repo view --json nameWithOwner,defaultBranchRef
 # Also inspect CONTRIBUTING.md, AGENTS.md, .github/PULL_REQUEST_TEMPLATE*.
 ```
 
-Read issue URL, any previous PR, and compare to intended base. For forks, ensure correct head fork owner and the base upstream. The bare `gh pr create` defaults can be wrong on fork checkouts. Examples to adapt **only after verification**:
+Treat the returned `feature_branch`, `base_branch`, `head_sha`, task receipts and whole-plan receipt as the local handoff contract. Read the issue URL and any previous PR, then compare repositories/remotes to that intended base. For forks, ensure correct head fork owner and the base upstream. The bare `gh pr create` defaults can be wrong on fork checkouts. Examples to adapt **only after verification**:
 
 ```bash
 # Given: upstream owner/project, fork username, branch fix-issue-123
