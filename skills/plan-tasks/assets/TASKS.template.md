@@ -1,6 +1,7 @@
 # Implementation Tasks
 
-Source plan: docs/PRD.md + docs/ARCHITECTURE.md
+Source: <GitHub issue URL or approved planning artifact path>
+Source revision: <issue updatedAt or document revision>
 Plan approval: draft
 
 ## T001: <one coherent, verifiable change>
