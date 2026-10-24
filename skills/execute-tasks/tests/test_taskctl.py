@@ -195,6 +195,39 @@ Plan approval: approved
         )
         self.assertIn("not clean", json.loads(result.stderr)["error"])
 
+    def test_new_project_can_initialize_on_current_branch_without_base(self):
+        plan_content = self.plan.read_text(encoding="utf-8")
+        state_path = Path(cmd(
+            "git", "rev-parse", "--git-path", "agent-workflow/progress.json", cwd=self.root,
+        ).stdout.strip())
+        if not state_path.is_absolute():
+            state_path = self.root / state_path
+        state_path.unlink()
+        cmd("git", "switch", "main", cwd=self.root)
+        self.plan.parent.mkdir(exist_ok=True)
+        self.plan.write_text(plan_content, encoding="utf-8")
+        cmd("git", "add", "docs/TASKS.md", cwd=self.root)
+        cmd("git", "commit", "-m", "docs: add new-project plan", cwd=self.root)
+        result = self.task("init")
+        self.assertTrue(result["initialized"])
+        self.assertEqual(result["branch"], "main")
+        self.assertIsNone(result["base_branch"])
+
+    def test_github_issue_requires_feature_branch_and_base(self):
+        state_path = Path(cmd(
+            "git", "rev-parse", "--git-path", "agent-workflow/progress.json", cwd=self.root,
+        ).stdout.strip())
+        if not state_path.is_absolute():
+            state_path = self.root / state_path
+        state_path.unlink()
+        content = self.plan.read_text(encoding="utf-8").replace(
+            "Source: approved artifact", "Source: https://github.com/acme/project/issues/7",
+        )
+        self.plan.write_text(content, encoding="utf-8")
+        cmd("git", "add", "docs/TASKS.md", cwd=self.root)
+        cmd("git", "commit", "-m", "docs: use issue source", cwd=self.root)
+        self.assertIn("requires `--base-branch`", self.task("init", ok=False)["error"])
+
     def test_whole_plan_verification_and_pr_evidence(self):
         self.complete_task("T001", "one\n")
         self.complete_task("T002", "two\n")

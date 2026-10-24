@@ -22,10 +22,11 @@ description: Turn one approved source—including exactly one GitHub issue for a
 8. Present the proposed ordered list and ask for explicit user approval. Write `Plan approval: approved` only after actual approval, then re-run validation. Pending drafts are not executable. An approved user revision requires revalidation; for an existing progress record, use `taskctl sync-plan --approved` only after explaining changes and obtaining approval.
 
 ## Baseline handoff and preservation
-- Do not commit or switch branches in this planning workflow. For a repository-local plan, leave the newly approved file for `$execute-tasks` to commit as the first planning-baseline commit on a feature branch. Report any other dirty paths separately; they are not part of the handoff.
+- Never create or switch branches in this planning workflow. Branch selection belongs to `$execute-tasks`, and only issue-backed MAINTENANCE or OSS execution requires a feature branch.
+- For a repository-local plan, leave the newly approved file for `$execute-tasks` to commit as a planning baseline: on the new feature branch for MAINTENANCE, or on the existing branch for NEW PROJECT. Report any other dirty paths separately; they are not part of the handoff.
 - Repository-local plans are durable workflow artifacts: keep them tracked through implementation and PR publication. Do not delete or rewrite an approved plan to make the tree clean.
 - OSS plans remain outside tracked source under the resolved `git --git-path agent-workflow/` directory. Preserve the plan there, pass its absolute path to later skills, and do not move it into the contribution diff.
-- If execution has already started, an approved revision must first be committed on the recorded feature branch and then synchronized with `taskctl sync-plan --approved`.
+- If execution has already started, an approved revision must first be committed on the recorded execution branch and then synchronized with `taskctl sync-plan --approved`.
 
 ## Boundaries
 Never implement source code, create or edit issues/PRs, commit, push or spawn agents. `/execute-tasks` is an independent user-authorized invocation. Accept exactly one maintenance issue per invocation, and do not force subtasks for a one-line fix.

@@ -97,13 +97,15 @@ def plan_load(path, require_approval=False):
     if len(source_digest_lines) > 1 or (source_digest_lines and source_digest is None):
         raise WorkflowError("Source digest must be one exact `Source digest: sha256:<64 lowercase hex>` line")
     source = SOURCE_RE.search(content)
-    if source and "github.com/" in source.group(1) and "/issues/" in source.group(1) and not source_digest:
+    issue_source = bool(source and "github.com/" in source.group(1) and "/issues/" in source.group(1))
+    if issue_source and not source_digest:
         raise WorkflowError("GitHub issue plans require a canonical `Source digest` line")
     return {
         "path": str(plan_path),
         "sha256": digest(content),
         "approved": approved,
         "source_digest": source_digest.group(1) if source_digest else None,
+        "issue_source": issue_source,
         "tasks": tasks,
     }
 
@@ -297,20 +299,24 @@ def verification_status(state, head):
 
 def initialize(args, plan, root, state_path, branch, head, state):
     if not branch:
-        raise WorkflowError("Detached HEAD not supported; select a feature branch first")
-    if branch == args.base_branch:
-        raise WorkflowError("Execution must be initialized on a feature branch, not the base branch")
+        raise WorkflowError("Detached HEAD not supported; select an execution branch first")
+    if plan["issue_source"] and not args.base_branch:
+        raise WorkflowError("GitHub issue execution requires `--base-branch` and a feature branch")
     if not head:
         raise WorkflowError("Repository has no commits. Create the reviewed planning baseline commit first")
-    base_sha = git("show-ref", "--hash", "--verify", f"refs/heads/{args.base_branch}",
-                   cwd=root, check=False)
-    if not base_sha:
-        raise WorkflowError(f"Base branch does not resolve locally: {args.base_branch}")
-    if subprocess.run(
-        ["git", "merge-base", "--is-ancestor", base_sha, head], cwd=root,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    ).returncode:
-        raise WorkflowError("Feature branch HEAD must descend from the recorded base branch")
+    base_sha = None
+    if args.base_branch:
+        if branch == args.base_branch:
+            raise WorkflowError("Issue execution must be initialized on a feature branch, not the base branch")
+        base_sha = git("show-ref", "--hash", "--verify", f"refs/heads/{args.base_branch}",
+                       cwd=root, check=False)
+        if not base_sha:
+            raise WorkflowError(f"Base branch does not resolve locally: {args.base_branch}")
+        if subprocess.run(
+            ["git", "merge-base", "--is-ancestor", base_sha, head], cwd=root,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ).returncode:
+            raise WorkflowError("Feature branch HEAD must descend from the recorded base branch")
     assert_clean(root)
     storage = plan_storage_mode(plan["path"], root, state_path.parent)
     if state is not None:
@@ -495,7 +501,7 @@ def cli():
         command_parser = subparsers.add_parser(name)
         command_parser.add_argument("--plan", required=True)
         if name == "init":
-            command_parser.add_argument("--base-branch", required=True)
+            command_parser.add_argument("--base-branch")
         if name in ("start", "complete", "block", "resume"):
             command_parser.add_argument("--task", required=True)
         if name in ("complete", "verify-plan"):

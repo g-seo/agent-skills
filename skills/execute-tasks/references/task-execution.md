@@ -1,7 +1,7 @@
 # Task execution: progress and verification contract
 
 ## State
-`taskctl.py` stores execution state under the current worktree's git metadata via `git rev-parse --git-path agent-workflow/progress.json` (not under the committed source tree). `init` binds it to one approved plan, feature branch, base branch/SHA and baseline SHA. `status` and `next` may be run in any new Codex conversation within the **same checkout/branch**. For a new clone, bring the approved task plan and Git history, then build a fresh state file with the user's acknowledgment; unrecorded completed work should be reconciled manually and not claimed complete.
+`taskctl.py` stores execution state under the current worktree's git metadata via `git rev-parse --git-path agent-workflow/progress.json` (not under the committed source tree). `init` binds it to one approved plan, execution branch, baseline SHA and, for issue work, a base branch/SHA. `status` and `next` may be run in any new Codex conversation within the **same checkout/branch**. For a new clone, bring the approved task plan and Git history, then build a fresh state file with the user's acknowledgment; unrecorded completed work should be reconciled manually and not claimed complete.
 
 - Pending → `start` → in_progress → `complete` → completed
 - in_progress → `block` → blocked → `resume` → in_progress
@@ -31,7 +31,10 @@ For changes where no runtime test applies, the verification still needs a *perfo
 ## Commands
 ```bash
 python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py validate --plan docs/TASKS.md
+# Issue-backed maintenance or OSS:
 python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md --base-branch main
+# New project (stay on the current branch):
+python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md
 python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py status --plan docs/TASKS.md
 python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py next --plan docs/TASKS.md
 python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py start --plan docs/TASKS.md --task T001
