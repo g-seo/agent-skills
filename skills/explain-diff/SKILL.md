@@ -1,6 +1,6 @@
 ---
 name: explain-diff
-description: Explain the current branch's proposed PR changes as a teaching-oriented Notion page covering background, intuition, code flow, trade-offs, evidence, and a five-question quiz. Invoke explicitly before PR publication.
+description: Explain the current branch's proposed PR changes in Korean as a teaching-oriented Notion page covering background, intuition, code flow, trade-offs, evidence, and a five-question quiz. Invoke explicitly before PR publication.
 ---
 
 # Explain Diff
@@ -16,14 +16,14 @@ Create one Notion page that helps the user understand the current branch's propo
 
 ## Teach the change
 
-Write in the user's requested language, otherwise the conversation language. Use this single-page structure, in order:
+Write the page in Korean by default. Use another language only when the user explicitly requests it. Use this single-page structure, in order:
 
-1. **Background** — Give a brief beginner-friendly mental model, then explain the existing components and contracts that matter to this change.
-2. **Intuition** — Explain the problem, why a change is needed, and the central idea before implementation detail. Use a small concrete example and compare before/after behavior.
-3. **Code** — Walk through the changed behavior in runtime or dependency order, grouped by concept rather than file order. Cite concrete paths and line locations; link to `https://github.com/<owner>/<repo>/blob/<HEAD-SHA>/<path>#L<start>-L<end>` when the remote and line range are known. Use short excerpts only when they clarify control or data flow. Explain key design decisions, meaningful alternatives, trade-offs, edge cases, and observable consequences.
-4. **Quiz** — Write exactly five medium-difficulty multiple-choice questions about behavior, causality, contracts, edge cases, or trade-offs. Give each question plausible distractors and an explanation for every option, including why the right answer is right. Keep option length, grammar, and specificity comparable. Vary and balance correct-answer positions across the five questions; do not use a fixed position pattern or reveal answers through wording or formatting.
+1. **배경** — Give a brief beginner-friendly mental model, then explain the existing components and contracts that matter to this change.
+2. **핵심 아이디어** — Explain the problem, why a change is needed, and the central idea before implementation detail. Use a small concrete example and compare before/after behavior.
+3. **코드 흐름** — Walk through the changed behavior in runtime or dependency order, grouped by concept rather than file order. Cite concrete paths and line locations; link to `https://github.com/<owner>/<repo>/blob/<HEAD-SHA>/<path>#L<start>-L<end>` when the remote and line range are known. Use short excerpts only when they clarify control or data flow. Explain key design decisions, meaningful alternatives, trade-offs, edge cases, and observable consequences.
+4. **퀴즈** — Write exactly five medium-difficulty multiple-choice questions about behavior, causality, contracts, edge cases, or trade-offs. Use `## 퀴즈` as the quiz unit and `### 퀴즈 1` through `### 퀴즈 5` for its questions. Under each question heading, show the question and its answer choices. Follow the choices with a toggle list titled **정답 및 해설**; put the correct answer and an explanation of every option inside the toggle so the answer is hidden until opened. Indent every block inside the toggle with tabs so Notion nests it as toggle content. Use plausible distractors, comparable option length, grammar, and specificity, and vary the correct-answer positions across the five questions without a fixed pattern or clues in the wording.
 
-Separate **stated intent** (requirements or approved plan) from **inferred intent** (reasoning inferred from implementation), and label inference as such. Do not invent a rationale when evidence is absent. In Code, include a compact source map with file/function/line references where available.
+Separate **stated intent** (requirements or approved plan) from **inferred intent** (reasoning inferred from implementation), and label inference as such. Do not invent a rationale when evidence is absent. In 코드 흐름, include a compact source map with file/function/line references where available.
 
 Use a small flow or component diagram when it makes behavior easier to see; label data-flow arrows with example values and include a text explanation. Use tables for concise mappings or before/after comparisons.
 
