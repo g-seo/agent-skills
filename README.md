@@ -12,7 +12,7 @@
 | `$plan-tasks` | 승인된 계획 또는 Issue 하나를 구현 가능한 순차 Task로 나눈다. | 승인된 `TASKS.md` |
 | `$execute-tasks` | 승인된 Task를 하나씩 구현, 검증, Commit하고 진행 상태를 기록한다. | 로컬 코드와 Commit |
 | `$explain-diff` | PR 제출 예정 변경의 배경, 의도, 코드 흐름을 설명하고 이해도 퀴즈가 포함된 Notion 페이지를 만든다. | 변경 설명 Notion 페이지 |
-| `$create-pr` | 검증된 브랜치를 Push하고 GitHub PR을 생성한다. | 원격 브랜치와 PR |
+| `$create-pr` | 검증된 브랜치를 Push하고 GitHub PR을 생성하며, 병합 확인 후 작업 브랜치를 정리한다. | PR과 병합 후 로컬·원격 브랜치 정리 |
 | `$repair-pr` | 기존 PR의 리뷰 지적, conflict 또는 CI 실패를 수정한다. | 기존 PR 브랜치의 수정과 Push |
 | `$write-ste` | 기술 문서와 Issue, PR 문구를 의미 변경 없이 명확하게 다듬는다. | 수정된 기술 텍스트 |
 
@@ -95,6 +95,14 @@ $create-pr 검증된 현재 브랜치로 PR을 생성해.
 ```
 
 `$explain-diff` 페이지는 학습 자료이며, `$execute-tasks`의 검증 증거나 `$create-pr`의 게시 승인을 대신하지 않는다.
+
+### PR 병합 후 브랜치 정리
+
+`$create-pr`가 기존 PR의 병합을 확인하면 기본적으로 해당 로컬·원격 작업 브랜치를 삭제하고 PR의 base 브랜치로 돌아간다. PR 이후 추가된 커밋이나 미커밋 변경은 보존한다. 병합을 백그라운드에서 감시하지 않으므로, 세션 종료 후 병합되었다면 다시 호출한다.
+
+```text
+$create-pr https://github.com/OWNER/REPOSITORY/pull/456 병합을 확인하고 작업 브랜치를 정리해.
+```
 
 ## 실행 규칙
 
