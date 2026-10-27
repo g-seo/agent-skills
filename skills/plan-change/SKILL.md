@@ -8,6 +8,9 @@ description: Investigate a requested bug fix, feature addition, or refactor in a
 ## Scope
 Take the user's described goal as the target. Do not select unrelated changes. Read applicable `AGENTS.md`, repository issue templates, architecture/docs, current branch, actual implementation, callers, tests and relevant history. Resolve the exact GitHub repository from remotes; do not guess the owner or repository. Prefer evidence to speculation. Never assume reported symptoms prove a particular root cause.
 
+## Language
+Explain the proposed issues, scope, trade-offs, and approval request to the user in Korean. Draft and publish GitHub issue titles and bodies in English. At final approval, pair a Korean explanation with the exact English titles and bodies to be published; keep the Korean explanation outside the published text. Preserve required template headings, code, logs, identifiers, and quotations as written. Follow a different language only when the user explicitly requests it.
+
 ## Process
 1. Establish the intended behavior and **observable existing behavior**; document exact source revision. For a bug, reproduce where practical using non-destructive commands; capture test/log evidence. When reproduction is unavailable, state uncertainty. For a feature, inspect existing contracts and behavior to preserve; for a refactor, identify invariants and baseline tests.
 2. Trace source modules, interfaces, data changes, dependency impact, edge cases and regression risks. Avoid rewriting architecture merely because it can be improved; only propose an architectural change if needed to accomplish the user's goal.

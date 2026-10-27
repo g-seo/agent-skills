@@ -114,5 +114,6 @@ $cleanup-branch https://github.com/OWNER/REPOSITORY/pull/456
 - `$plan-tasks`는 작은 작업을 불필요하게 여러 Task로 나누지 않는다.
 - `$execute-tasks`는 Task를 의존성 순서대로 하나씩 처리한다.
 - Issue 생성, Push, PR 생성·수정, 댓글, Merge, Deploy에는 각각 필요한 사용자 승인이 있어야 한다.
+- `$plan-change`와 `$create-pr`는 승인 요청과 설명을 한국어로 하고, GitHub에 게시할 제목과 본문은 영어로 작성한다. 승인 요청 시 실제 게시할 영어 원문도 함께 제시하며, 한국어 설명은 게시물에 포함하지 않는다. 사용자가 다른 언어를 명시하면 그 요청을 따른다.
 - `$create-pr`와 `$repair-pr`는 Merge하지 않는다.
 - 사용자의 기존 작업을 자동으로 reset, clean 또는 stash하지 않는다.
