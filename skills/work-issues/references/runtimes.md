@@ -37,3 +37,5 @@ and finish with the JSON stage receipt.
 | Codex subagent from the interactive TUI | Unverified | — |
 | Claude Code Agent-tool worker committing in a registered worktree | Unverified | — |
 | Mixed `process` run (`claude -p` + `codex exec`) | Unverified | — |
+
+The issue #6 implementation verified coordinator state handling with automated tests only (`skills/execute-tasks/tests/test_pipeline_integration.py`). Update the unverified rows above after each manual run.
