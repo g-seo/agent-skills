@@ -22,8 +22,8 @@ description: Turn one approved source—including exactly one GitHub issue for a
 8. Present the proposed ordered list and ask for explicit user approval. Write `Plan approval: approved` only after actual approval, then re-run validation. Pending drafts are not executable. An approved user revision requires revalidation; for an existing progress record, use `taskctl sync-plan --approved` only after explaining changes and obtaining approval.
 
 ## Baseline handoff and preservation
-- Never create or switch branches in this planning workflow. Branch selection belongs to `$execute-tasks`, and only issue-backed MAINTENANCE or OSS execution requires a feature branch.
-- For a repository-local plan, leave the newly approved file for `$execute-tasks` to commit as a planning baseline: on the new feature branch for MAINTENANCE, or on the existing branch for NEW PROJECT. Report any other dirty paths separately; they are not part of the handoff.
+- Never create or switch branches in this planning workflow. Issue-backed MAINTENANCE or OSS work requires one feature branch per issue; `$execute-tasks` creates it on first execution or reuses an existing branch verified to belong to that issue. All tasks and later execution sessions for that issue use the same branch.
+- For a repository-local plan, leave the newly approved file for `$execute-tasks` to commit as a planning baseline: on that issue's feature branch for MAINTENANCE, or on the existing branch for NEW PROJECT. Report any other dirty paths separately; they are not part of the handoff.
 - Repository-local plans are durable workflow artifacts: keep them tracked through implementation and PR publication. Do not delete or rewrite an approved plan to make the tree clean.
 - OSS plans remain outside tracked source under the resolved `git --git-path agent-workflow/` directory. Preserve the plan there, pass its absolute path to later skills, and do not move it into the contribution diff.
 - If execution has already started, an approved revision must first be committed on the recorded execution branch and then synchronized with `taskctl sync-plan --approved`.
