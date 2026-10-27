@@ -30,22 +30,22 @@ For changes where no runtime test applies, the verification still needs a *perfo
 
 ## Commands
 ```bash
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py validate --plan docs/TASKS.md
+python3 <this-skill>/scripts/taskctl.py validate --plan docs/TASKS.md
 # Issue-backed maintenance or OSS:
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md --base-branch main
+python3 <this-skill>/scripts/taskctl.py init --plan docs/TASKS.md --base-branch main
 # New project (stay on the current branch):
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py status --plan docs/TASKS.md
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py next --plan docs/TASKS.md
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py start --plan docs/TASKS.md --task T001
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py complete --plan docs/TASKS.md --task T001 --evidence /tmp/T001-verification.json
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py block --plan docs/TASKS.md --task T002 --reason "integration database unavailable"
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py resume --plan docs/TASKS.md --task T002
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py verify-plan --plan docs/TASKS.md --evidence /tmp/whole-plan-verification.json
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py pr-evidence --plan docs/TASKS.md
+python3 <this-skill>/scripts/taskctl.py init --plan docs/TASKS.md
+python3 <this-skill>/scripts/taskctl.py status --plan docs/TASKS.md
+python3 <this-skill>/scripts/taskctl.py next --plan docs/TASKS.md
+python3 <this-skill>/scripts/taskctl.py start --plan docs/TASKS.md --task T001
+python3 <this-skill>/scripts/taskctl.py complete --plan docs/TASKS.md --task T001 --evidence /tmp/T001-verification.json
+python3 <this-skill>/scripts/taskctl.py block --plan docs/TASKS.md --task T002 --reason "integration database unavailable"
+python3 <this-skill>/scripts/taskctl.py resume --plan docs/TASKS.md --task T002
+python3 <this-skill>/scripts/taskctl.py verify-plan --plan docs/TASKS.md --evidence /tmp/whole-plan-verification.json
+python3 <this-skill>/scripts/taskctl.py pr-evidence --plan docs/TASKS.md
 ```
 
-Examples use the Codex CLI global skill path. In Claude Code, use `~/.claude/skills/execute-tasks/scripts/taskctl.py`; both paths link to the same source, and the script resolves state from the current Git checkout, not from the install path. If skills are installed elsewhere, resolve `scripts/taskctl.py` relative to the loaded `execute-tasks/SKILL.md`. Pass the full path in each command; agent shells may not keep variables between commands. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
+`<this-skill>` is the directory of the loaded `execute-tasks/SKILL.md`; resolve it in the current session instead of assuming an install path. The script resolves state from the current Git checkout, not from its own location. Substitute the absolute path in each command; agent shells may not keep variables between commands. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
 
 For maintenance issues, save `gh issue view --json title,body,state,labels,comments` output temporarily and run `taskctl.py source-digest --input <json-path>`. The canonical digest covers title, body, state, sorted label names, and comment IDs/bodies; it ignores `updatedAt` and other timestamps. Compare this value with the plan's `Source digest`.
 

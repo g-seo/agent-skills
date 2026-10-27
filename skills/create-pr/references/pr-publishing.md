@@ -9,8 +9,8 @@ git remote -v
 git log -1 --format='%H %s'
 git rev-parse --git-path agent-workflow/progress.json
 # Read plan_path from that ledger, then:
-# Use the installed execute-tasks skill path (Codex: ~/.agents/skills, Claude Code: ~/.claude/skills).
-python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py pr-evidence --plan <plan-path>
+# <execute-tasks> is the sibling execute-tasks directory next to the loaded create-pr skill.
+python3 <execute-tasks>/scripts/taskctl.py pr-evidence --plan <plan-path>
 gh auth status
 gh repo view --json nameWithOwner,defaultBranchRef
 # Also inspect CONTRIBUTING.md, AGENTS.md, .github/PULL_REQUEST_TEMPLATE*.
