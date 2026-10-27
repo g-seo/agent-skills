@@ -28,6 +28,16 @@ and finish with the JSON stage receipt.
 - Fallback: if a Codex subagent cannot be created, switch that issue to the `process` runner and report the switch.
 - A `subagent` worker hitting the CLI usage limit stops all workers of that CLI and the coordinator. Re-invoke `$work-issues` after the limit resets, or continue an `interrupted` issue with the unit skill in the other CLI.
 
+## Codex setup checklist
+
+Before the first Codex worker, check each item in order:
+
+1. The rules file exists and comes from the current checkout. `grep taskctl.py ~/.codex/rules/agent-workflow.rules` prints `<repository root>/skills/execute-tasks/scripts/taskctl.py`. A missing file or another path means the rules were not generated from this checkout.
+2. The rules allow commits and forbid pushes. `codex execpolicy check --rules ~/.codex/rules/agent-workflow.rules -- git commit -m x` prints `"decision":"allow"`, and `codex execpolicy check --rules ~/.codex/rules/agent-workflow.rules -- git push` prints `"decision":"forbidden"`.
+3. Codex starts in the repository root, not `$HOME`. The session header or `pwd` shows the repository root.
+4. Branch writes work in the main checkout. `git branch agent-workflow/preflight-<id>` and then `git branch -D agent-workflow/preflight-<id>` both succeed without an approval prompt; use a unique `<id>`.
+5. Each `codex exec` worker started from a Codex session asks for one approval for the process start. Expect one prompt per worker; a prompt for each `git` command means item 1 or 2 failed.
+
 ## Verified combinations
 
 | Combination | Result | Evidence |
