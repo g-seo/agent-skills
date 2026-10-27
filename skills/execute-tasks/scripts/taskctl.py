@@ -592,9 +592,109 @@ def overlap(paths):
     }
 
 
+SKILLS_ROOT = Path(__file__).resolve().parents[2]
+BUILTIN_STAGES = {"builtin:precheck"}
+STAGE_ACCESS = {"read", "local-write", "remote"}
+STAGE_GATES = {"none", "approval"}
+STAGE_FLAGS = ("modifies-code", "verifies", "optional", "parallel")
+DEFAULT_PIPELINE = {
+    "concurrency": 2,
+    "stages": [
+        {"id": "precheck", "skill": "builtin:precheck", "access": "read"},
+        {"id": "plan", "skill": "plan-tasks", "gate": "approval", "access": "local-write"},
+        {"id": "execute", "skill": "execute-tasks", "access": "local-write",
+         "modifies-code": True, "verifies": True, "parallel": True},
+        {"id": "explain", "skill": "explain-diff", "gate": "approval", "access": "remote", "optional": True},
+        {"id": "pr", "skill": "create-pr", "gate": "approval", "access": "remote"},
+    ],
+}
+
+
+def normalize_stage(stage):
+    if not isinstance(stage, dict):
+        raise WorkflowError(f"Stage must be an object: {stage!r}")
+    result = {"mode": "per-issue", "gate": "none", **stage}
+    for flag in STAGE_FLAGS:
+        result[flag] = bool(result.get(flag, False))
+    return result
+
+
+def validate_stages(stages):
+    if not isinstance(stages, list) or not stages:
+        raise WorkflowError("Pipeline needs a non-empty `stages` list")
+    stages = [normalize_stage(stage) for stage in stages]
+    seen, unverified = set(), None
+    for stage in stages:
+        ident = stage.get("id")
+        if not isinstance(ident, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", ident):
+            raise WorkflowError(f"Invalid stage id: {ident!r}")
+        if ident in seen:
+            raise WorkflowError(f"Duplicate stage id: {ident}")
+        seen.add(ident)
+        skill = stage.get("skill")
+        if skill not in BUILTIN_STAGES and not (
+            isinstance(skill, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", skill)
+            and (SKILLS_ROOT / skill / "SKILL.md").is_file()
+        ):
+            raise WorkflowError(f"Stage {ident}: skill not found: {skill!r}")
+        if stage["mode"] != "per-issue":
+            raise WorkflowError(f"Stage {ident}: unsupported mode {stage['mode']!r}")
+        if stage.get("access") not in STAGE_ACCESS:
+            raise WorkflowError(f"Stage {ident}: access must be one of {sorted(STAGE_ACCESS)}")
+        if stage["gate"] not in STAGE_GATES:
+            raise WorkflowError(f"Stage {ident}: gate must be one of {sorted(STAGE_GATES)}")
+        if stage["access"] == "remote" and stage["gate"] != "approval":
+            raise WorkflowError(f"Stage {ident}: remote stages require gate `approval`")
+        if stage["modifies-code"] and not stage["verifies"]:
+            unverified = ident
+        elif stage["verifies"]:
+            unverified = None
+        if stage["access"] == "remote" and unverified:
+            raise WorkflowError(f"Stage {unverified} modifies code but is not verified before remote stage {ident}")
+    return stages
+
+
+def resolve_concurrency(value, source):
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise WorkflowError(f"Concurrency from {source} must be a positive integer: {value!r}")
+    return value
+
+
+def load_pipeline(path=None):
+    if path is None:
+        main_root = workspace_context()[0]
+        path = main_root / ".agent-workflow" / "pipeline.json"
+        if not path.exists():
+            return DEFAULT_PIPELINE, "default"
+    path = Path(path).expanduser().resolve()
+    try:
+        pipeline = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise WorkflowError(f"Invalid pipeline file {path}: {exc}")
+    if not isinstance(pipeline, dict):
+        raise WorkflowError(f"Invalid pipeline file {path}: expected an object")
+    return pipeline, str(path)
+
+
+def pipeline_act(args):
+    pipeline, source = load_pipeline(args.file)
+    stages = validate_stages(pipeline.get("stages"))
+    if args.concurrency is not None:
+        concurrency = resolve_concurrency(args.concurrency, "--concurrency")
+    elif "concurrency" in pipeline:
+        concurrency = resolve_concurrency(pipeline["concurrency"], source)
+    else:
+        concurrency = DEFAULT_PIPELINE["concurrency"]
+    if args.pipeline_command == "validate":
+        return {"valid": True, "source": source, "stage_count": len(stages), "concurrency": concurrency}
+    return {"source": source, "concurrency": concurrency, "stages": stages}
+
+
 def act(args):
     if args.command == "source-digest":
         return canonical_issue_digest(args.input)
+    if args.command == "pipeline":
+        return pipeline_act(args)
     if args.command == "workspace":
         return workspace_act(args)
     if args.command == "overlap":
@@ -759,6 +859,12 @@ def cli():
     subparsers = parser.add_subparsers(dest="command", required=True)
     digest_parser = subparsers.add_parser("source-digest")
     digest_parser.add_argument("--input", required=True, help="gh issue view JSON path, or - for stdin")
+    pipeline_parser = subparsers.add_parser("pipeline")
+    pipeline_commands = pipeline_parser.add_subparsers(dest="pipeline_command", required=True)
+    for name in ("show", "validate"):
+        command_parser = pipeline_commands.add_parser(name)
+        command_parser.add_argument("--file")
+        command_parser.add_argument("--concurrency", type=int)
     overlap_parser = subparsers.add_parser("overlap")
     overlap_parser.add_argument("--plans", nargs="+", required=True)
     workspace_parser = subparsers.add_parser("workspace")
