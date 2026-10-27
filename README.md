@@ -1,6 +1,6 @@
 # agent-skills
 
-신규 프로젝트 설계, 기존 프로젝트 유지보수, 오픈소스 기여를 위한 단일 에이전트 스킬 모음이다. 같은 `skills/` 원본을 Codex CLI와 Claude Code에서 동일한 워크플로우로 사용한다.
+신규 프로젝트 설계, 기존 프로젝트 유지보수, 오픈소스 기여를 위한 에이전트 스킬 모음이다. 에이전트 하나로 순차 처리할 수도 있고, 독립적인 Issue를 여러 세션에서 병렬로 처리할 수도 있다. 같은 `skills/` 원본을 Codex CLI와 Claude Code에서 동일한 워크플로우로 사용한다.
 
 ## 설치
 
@@ -39,7 +39,22 @@ claude mcp add --transport http --scope user notion https://mcp.notion.com/mcp  
 
 - 아래 예시는 Codex 표기(`$skill-name`)를 사용한다. Claude Code에서는 `$`를 `/`로 바꿔 `/plan-tasks docs/TASKS.md ...`처럼 호출한다. 스킬 본문의 `$skill-name`도 같은 스킬을 가리킨다.
 - `$explain-diff`는 명시적으로만 호출된다. Codex는 `agents/openai.yaml`의 `allow_implicit_invocation: false`, Claude Code는 `SKILL.md`의 `disable-model-invocation: true`로 같은 정책을 적용한다.
-- `$execute-tasks`의 진행 기록은 저장소의 `.git/agent-workflow/progress.json`에 저장된다. 같은 checkout에서는 Codex와 Claude Code가 같은 기록을 이어서 사용할 수 있다. 같은 Task를 두 CLI에서 동시에 실행하지 않는다.
+- `$execute-tasks`의 진행 기록은 worktree마다 `git rev-parse --git-path agent-workflow/progress.json` 위치에 저장된다. 같은 worktree에서는 Codex와 Claude Code가 같은 기록을 이어서 사용할 수 있다. 같은 Issue를 두 세션에서 동시에 실행하지 않는다.
+
+### Codex 설정
+
+Codex의 `workspace-write` sandbox는 `.git`을 읽기 전용으로 보호한다. Commit, worktree 생성과 진행 기록 저장이 승인 없이 동작하도록 규칙 파일을 설치한다.
+
+```bash
+cd ~/src/agent-skills
+mkdir -p ~/.codex/rules
+sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/rules/agent-workflow.rules
+```
+
+- 규칙은 `git add|commit|worktree|branch|switch|fetch|rebase|merge`와 이 저장소의 `taskctl.py`만 허용하고 `git push`는 금지한다. 저장소를 옮기면 다시 생성한다.
+- Codex는 작업할 저장소의 루트에서 실행한다. 홈 디렉터리에서 시작하면 쓰기 범위가 홈 전체가 되어 `~/.aws` 같은 심볼릭 링크 때문에 sandbox가 시작되지 않을 수 있다.
+- 규칙은 명령 prefix가 정확히 일치해야 적용된다. 스킬은 `git -C` 없이 worktree를 작업 디렉터리로 지정해 Git을 실행하고, `taskctl.py`를 실제 경로로 호출한다.
+- 허용된 Git 명령은 저장소 hook을 포함해 sandbox 밖에서 실행된다. `git push` 이외의 원격 쓰기는 스킬의 승인 규칙으로 통제한다.
 
 ## 스킬
 
@@ -97,7 +112,23 @@ $execute-tasks docs/tasks/issue-123.md의 승인된 작업을 순차 실행해.
 
 유지보수 Task 파일의 기본 위치는 `docs/tasks/issue-<number>.md`다. Issue가 여러 개면 Issue마다 별도의 Task 파일을 사용한다.
 
-이슈 단위 작업은 이슈당 하나의 전용 브랜치를 사용한다. `$plan-tasks`는 브랜치를 생성하거나 전환하지 않는다. `$execute-tasks`는 최초 실행 시 전용 브랜치를 생성하며, 이미 해당 이슈용 브랜치가 있으면 범위와 base를 확인한 뒤 재사용한다. 이후 실행을 재개할 때도 그 이슈의 구현을 시작했던 브랜치를 사용하며, 개별 Task마다 새 브랜치를 만들지 않는다. 이 규칙은 이슈 기반 오픈소스 기여에도 동일하게 적용된다.
+이슈 단위 작업은 이슈당 하나의 worktree와 전용 브랜치를 사용한다. `taskctl.py workspace get --issue <N>`이 `<저장소>/.worktrees/issue-<N>`과 `fix/issue-<N>` 브랜치를 처음 한 번 만들고, 이후에는 같은 위치를 돌려준다. 이슈 스킬은 세션을 어느 디렉터리에서 시작했든 이 명령으로 위치를 찾으므로 사용자가 브랜치나 worktree를 직접 전환할 필요가 없다. `.worktrees/`는 `.git/info/exclude`에 자동 등록된다. 개별 Task마다 새 브랜치를 만들지 않는다. 오픈소스 기여는 기존처럼 현재 checkout에서 이슈 전용 브랜치를 사용한다.
+
+#### 병렬 실행
+
+독립적인 Issue는 세션을 여러 개 열어 동시에 처리할 수 있다. 예를 들어 Claude Code 터미널과 Codex 터미널을 각각 열고 서로 다른 Issue를 실행한다.
+
+```text
+(터미널 1, claude) /execute-tasks docs/tasks/issue-123.md
+(터미널 2, codex)  $execute-tasks docs/tasks/issue-456.md
+```
+
+- `$execute-tasks`는 시작할 때 Issue의 lease를 잡는다. 다른 세션이 이미 잡은 Issue는 실행하지 않고 보고한다.
+- 동시에 실행해도 되는지는 계획의 `- Touches:` 줄로 확인한다. `taskctl.py overlap --plans <계획 A> <계획 B>`가 `parallel`이면 병렬로, `sequential`이면 앞 Issue의 PR이 병합된 뒤 실행한다.
+- `taskctl.py workspace list`로 Issue별 worktree, 브랜치, dirty 상태, lease를 확인한다.
+- 먼저 병합된 PR 때문에 남은 PR의 base가 바뀌면 `$repair-pr`로 갱신한다.
+- 사용량 한도로 세션이 멈춰도 commit된 Task와 진행 기록은 worktree에 남는다. 같은 명령을 다른 CLI에서 실행해 이어간다. 멈춘 세션의 lease는 `workspace list`로 확인한 뒤 `workspace release --force`로 해제한다.
+- Registry lock은 `fcntl`을 사용한다. Linux, macOS, WSL에서 동작하며 Windows 기본 Python은 지원하지 않는다.
 
 필요하면 구현과 검증 후 PR을 생성한다.
 
@@ -142,7 +173,7 @@ $create-pr 검증된 현재 브랜치로 PR을 생성해.
 
 작업을 완료하고 PR을 병합한 뒤 마지막 단계로 `$cleanup-branch`를 호출한다. 인자 없이 호출하면 현재 저장소에 남은 로컬·원격 작업 브랜치를 모두 검사하고, 연결된 PR의 병합이 확인되며 브랜치 끝이 해당 PR의 head SHA와 일치하는 브랜치만 정리한다. 이미 `main` 등 기준 브랜치에 있어도 검사한다. PR URL/번호나 브랜치를 지정하면 해당 대상으로 범위를 좁힌다.
 
-정리 전에 PR의 base 브랜치로 돌아가 최신화한다. 정리 대상 PR의 base가 서로 다르면 저장소 기본 브랜치로 돌아간다. 추가 커밋, 열린 PR, 보호 브랜치, 다른 worktree에서 사용 중인 로컬 브랜치 등은 보존하고 사유를 보고한다. 미커밋 변경이 있으면 변경 없이 중단하며, 병합이나 백그라운드 감시는 수행하지 않는다.
+정리 전에 PR의 base 브랜치로 돌아가 최신화한다. 정리 대상 PR의 base가 서로 다르면 저장소 기본 브랜치로 돌아간다. 병합된 Issue의 worktree는 `workspace remove`로 제거하고, 그 진행 기록은 `.git/agent-workflow/history/issue-<N>/`에 보관한다. 추가 커밋, 열린 PR, 보호 브랜치, dirty 상태이거나 lease가 남은 worktree, 등록되지 않은 worktree에서 사용 중인 로컬 브랜치 등은 보존하고 사유를 보고한다. 미커밋 변경이 있으면 변경 없이 중단하며, 병합이나 백그라운드 감시는 수행하지 않는다.
 
 ```text
 $cleanup-branch
@@ -153,7 +184,7 @@ $cleanup-branch https://github.com/OWNER/REPOSITORY/pull/456
 
 - 계획 스킬은 제품 코드를 구현하지 않는다.
 - `$plan-tasks`는 작은 작업을 불필요하게 여러 Task로 나누지 않는다.
-- `$execute-tasks`는 Task를 의존성 순서대로 하나씩 처리한다.
+- `$execute-tasks`는 Task를 의존성 순서대로 하나씩 처리한다. 하나의 Issue는 한 세션만 실행하며, 서로 다른 Issue는 각자의 worktree에서 동시에 실행할 수 있다.
 - Issue 생성, Push, PR 생성·수정, 댓글, Merge, Deploy에는 각각 필요한 사용자 승인이 있어야 한다.
 - `$plan-change`와 `$create-pr`는 승인 요청과 설명을 한국어로 하고, GitHub에 게시할 제목과 본문은 영어로 작성한다. 승인 요청 시 실제 게시할 영어 원문도 함께 제시하며, 한국어 설명은 게시물에 포함하지 않는다. 사용자가 다른 언어를 명시하면 그 요청을 따른다.
 - `$create-pr`와 `$repair-pr`는 Merge하지 않는다.

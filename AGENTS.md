@@ -21,6 +21,11 @@
 - Use platform-specific settings only when behavior cannot be shared, such as `agents/openai.yaml` (Codex) and Claude-only frontmatter like `disable-model-invocation`. Keep matching policies in both.
 - `CLAUDE.md` imports this file; edit rules here only.
 
+## Single and Parallel Execution
+- Keep every workflow usable by one agent and by several concurrent agents. One issue = one worktree = one unit skill run; parallelism is only the number of concurrent runs.
+- Issue-scoped skills resolve their location with `taskctl.py workspace get` instead of the current checkout or branch.
+- Run Git with the target worktree as the working directory and no options before the subcommand (no `git -C`). Call `taskctl.py` by its resolved real path. Codex allowlist rules in `templates/codex/agent-workflow.rules` match exact command prefixes.
+
 ## Git & Security
 - Update `README.md` when adding, removing, or renaming skills.
 - Commit small, verified changes with descriptive messages.
