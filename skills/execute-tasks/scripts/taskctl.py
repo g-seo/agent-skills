@@ -497,14 +497,21 @@ def workspace_remove(args, main_root, registry):
         if entry.get("lease"):
             raise WorkflowError(f"Issue #{args.issue} is claimed by {entry['lease']['owner']}; release it first")
         path = Path(entry["worktree"])
+        archived = None
         if path.is_dir():
             if git("status", "--porcelain", "--untracked-files=normal", cwd=path):
                 raise WorkflowError(f"Workspace {path} has uncommitted changes; preserve them before removal")
+            ledger = Path(git("rev-parse", "--path-format=absolute", "--git-path",
+                              "agent-workflow/progress.json", cwd=path))
+            if ledger.exists():
+                archived = registry.parent / "history" / f"issue-{args.issue}" / "progress.json"
+                atomic_json(archived, json.loads(ledger.read_text(encoding="utf-8")))
             git("worktree", "remove", str(path), cwd=main_root)
         else:
             git("worktree", "prune", cwd=main_root)
         (registry / f"{args.issue}.json").unlink()
-        return {"removed": True, "issue": args.issue, "worktree": str(path), "branch": entry["branch"]}
+        return {"removed": True, "issue": args.issue, "worktree": str(path), "branch": entry["branch"],
+                "archived_ledger": str(archived) if archived else None}
 
 
 def workspace_lease(args, registry):

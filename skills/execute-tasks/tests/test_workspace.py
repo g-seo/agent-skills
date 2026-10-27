@@ -90,6 +90,17 @@ class WorkspaceTests(unittest.TestCase):
         error = self.workspace("remove", "--issue", "7", ok=False)
         self.assertIn("no registered workspace", error["error"])
 
+    def test_remove_archives_the_worktree_ledger(self):
+        entry = self.workspace("get", "--issue", "7")
+        ledger = Path(cmd("git", "rev-parse", "--path-format=absolute", "--git-path",
+                          "agent-workflow/progress.json", cwd=entry["worktree"]).stdout.strip())
+        ledger.parent.mkdir(parents=True)
+        ledger.write_text(json.dumps({"version": 2, "tasks": {}}), encoding="utf-8")
+        removed = self.workspace("remove", "--issue", "7")
+        archived = Path(removed["archived_ledger"])
+        self.assertEqual(archived, self.root / ".git" / "agent-workflow" / "history" / "issue-7" / "progress.json")
+        self.assertEqual(json.loads(archived.read_text(encoding="utf-8"))["version"], 2)
+
     def test_unregistered_worktree_is_never_touched(self):
         other = self.root.parent / "other"
         cmd("git", "worktree", "add", "-b", "other", str(other), cwd=self.root)
