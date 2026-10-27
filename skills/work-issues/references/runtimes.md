@@ -14,6 +14,8 @@ never ask the user (return blocked or needs-approval instead), release the lease
 and finish with the JSON stage receipt.
 ```
 
+Do not add implementation instructions, file locations or content guidance. The worker reads the approved plan through `$execute-tasks`; a plan gap is a `blocked` receipt, not a handoff note.
+
 ## Runners
 
 | Runner | Claude Code | Codex CLI | Usage limits |
@@ -45,7 +47,9 @@ Before the first Codex worker, check each item in order:
 | Codex `codex exec` worker: worktree add and commit with rules, no approval prompts | Verified | Manual check before issue #5 |
 | Codex subagent created from inside `codex exec` | Failed: `invalid thread-store request: no rollout found for thread id …` | Manual check before issue #5 |
 | Codex subagent from the interactive TUI | Unverified | — |
-| Claude Code Agent-tool worker committing in a registered worktree | Unverified | — |
+| Claude Code Agent-tool worker committing in a registered worktree | Verified | `$work-issues #9 #10` run: issues #9 and #10, PRs #11 and #12 |
+| Two concurrent Claude Code subagent workers sharing one registry | Verified | `$work-issues #9 #10` run: issues #9 and #10, PRs #11 and #12 |
+| Codex `process` runner completing a two-issue run | Unverified | Tracked in a separate issue |
 | Mixed `process` run (`claude -p` + `codex exec`) | Unverified | — |
 
-The issue #6 implementation verified coordinator state handling with automated tests only (`skills/execute-tasks/tests/test_pipeline_integration.py`). Update the unverified rows above after each manual run.
+Coordinator state handling is also covered by automated tests (`skills/execute-tasks/tests/test_pipeline_integration.py`). Record only what a manual run showed, and update the unverified rows after each run.

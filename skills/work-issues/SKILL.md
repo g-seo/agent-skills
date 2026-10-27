@@ -13,6 +13,8 @@ Usage: `$work-issues <issue>... [--concurrency K] [--runner subagent|process]`.
 ## Authority and limits
 - The invocation authorizes the per-issue local stages (precheck, workspaces, planning drafts, delegated execution) for the listed issues only. Plans, PRs and every `remote` stage still need the batched approvals below. Never merge, close issues, post comments, or start issues that were not listed.
 - The coordinator does not edit source code. Workers run the unit skills; the coordinator records progress with `<taskctl>` and reports.
+- Run every skill-backed stage (`plan`, `pr`, `explain` and added stages) by invoking its skill (`$plan-tasks`, `$create-pr`, ...). Never reproduce a skill's steps inline; only `builtin:` stages run as coordinator procedure. If a skill cannot be invoked, block that issue and report it.
+- Send workers the handoff from `runtimes.md` exactly. Add no implementation instructions, file locations or content guidance; the worker takes task content from the approved plan.
 - Concurrency 1 is the single-agent workflow: the same stages run one issue at a time. Invoking a unit skill directly (for example `$execute-tasks`) remains valid and uses the same registry.
 - Do not poll in the background or schedule jobs. Wait only for workers this session started.
 
