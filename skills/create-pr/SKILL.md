@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: On explicit user authorization, publish an existing verified change set as a GitHub PR using Codex CLI and gh; verify fork/upstream base, issue references, PR template, and result without implementing or merging.
+description: On explicit user authorization, publish an existing verified change set as a GitHub PR using a local agent CLI (Codex CLI or Claude Code) and gh; verify fork/upstream base, issue references, PR template, and result without implementing or merging.
 ---
 
 # Create PR — publication only

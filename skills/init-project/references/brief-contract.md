@@ -15,4 +15,4 @@ ChatGPT should create a Markdown document with the following headings. Equivalen
 11. Open Decisions and Assumptions
 12. Examples and References (optional)
 
-Every major product choice must be marked `CONFIRMED`, `PREFERENCE` or `OPEN`; a blank cell is not a decision. Distinguish user statements from ChatGPT suggestions. Code-level architecture is **not** mandatory in the brief; it belongs in Codex.
+Every major product choice must be marked `CONFIRMED`, `PREFERENCE` or `OPEN`; a blank cell is not a decision. Distinguish user statements from ChatGPT suggestions. Code-level architecture is **not** mandatory in the brief; it belongs in the coding agent (Codex CLI or Claude Code).

@@ -1,6 +1,45 @@
 # agent-skills
 
-신규 프로젝트 설계, 기존 프로젝트 유지보수, 오픈소스 기여를 위한 단일 Codex 에이전트 스킬 모음이다.
+신규 프로젝트 설계, 기존 프로젝트 유지보수, 오픈소스 기여를 위한 단일 에이전트 스킬 모음이다. 같은 `skills/` 원본을 Codex CLI와 Claude Code에서 동일한 워크플로우로 사용한다.
+
+## 설치
+
+`skills/`가 단일 원본이다. 각 CLI의 전역 스킬 경로에 스킬 디렉터리마다 심볼릭 링크를 만든다. 이미 있는 링크나 디렉터리는 덮어쓰지 않는다.
+
+| CLI | 전역 스킬 경로 | 호출 | 프로젝트 지침 |
+| --- | --- | --- | --- |
+| Codex CLI | `~/.agents/skills/<skill-name>` | `$skill-name` | `AGENTS.md` |
+| Claude Code | `~/.claude/skills/<skill-name>` | `/skill-name` | `CLAUDE.md` (`@AGENTS.md` import) |
+
+```bash
+cd ~/src/agent-skills
+for dir in ~/.agents/skills ~/.claude/skills; do
+  mkdir -p "$dir"
+  for skill in skills/*/; do
+    name=$(basename "$skill")
+    [ -e "$dir/$name" ] || [ -L "$dir/$name" ] || ln -s "$PWD/skills/$name" "$dir/$name"
+  done
+done
+```
+
+새 세션을 시작하면 스킬이 로드된다. Codex는 `$`를 입력하거나 `/skills`로, Claude Code는 `/`를 입력해 목록을 확인한다.
+
+### 요구 사항
+
+- Git, Python 3.10 이상(`execute-tasks/scripts/taskctl.py`, 표준 라이브러리만 사용)
+- GitHub CLI(`gh auth login`): `$plan-change`, `$plan-tasks`, `$create-pr`, `$cleanup-branch`, `$repair-pr`, `$contribute`
+- Notion MCP: `$explain-diff`. 두 CLI에 각각 등록하고 인증한다.
+
+```bash
+codex mcp add notion --url https://mcp.notion.com/mcp   # 이후 codex mcp login notion
+claude mcp add --transport http --scope user notion https://mcp.notion.com/mcp   # 이후 Claude Code에서 /mcp로 인증
+```
+
+### 호출 규칙
+
+- 아래 예시는 Codex 표기(`$skill-name`)를 사용한다. Claude Code에서는 `$`를 `/`로 바꿔 `/plan-tasks docs/TASKS.md ...`처럼 호출한다. 스킬 본문의 `$skill-name`도 같은 스킬을 가리킨다.
+- `$explain-diff`는 명시적으로만 호출된다. Codex는 `agents/openai.yaml`의 `allow_implicit_invocation: false`, Claude Code는 `SKILL.md`의 `disable-model-invocation: true`로 같은 정책을 적용한다.
+- `$execute-tasks`의 진행 기록은 저장소의 `.git/agent-workflow/progress.json`에 저장된다. 같은 checkout에서는 Codex와 Claude Code가 같은 기록을 이어서 사용할 수 있다. 같은 Task를 두 CLI에서 동시에 실행하지 않는다.
 
 ## 스킬
 

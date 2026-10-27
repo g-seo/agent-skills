@@ -1,13 +1,13 @@
 ---
 name: execute-tasks
-description: Implement an explicitly approved TASKS.md one dependency-ready task at a time using one Codex CLI agent; test, inspect the diff, commit a coherent unit, record progress, and continue until complete or blocked.
+description: Implement an explicitly approved TASKS.md one dependency-ready task at a time using one agent session (Codex CLI or Claude Code); test, inspect the diff, commit a coherent unit, record progress, and continue until complete or blocked.
 ---
 
 # Execute Tasks — single agent and verified commit loop
 
 ## Setup and safety
 - This invocation authorizes completing approved tasks with local **code edits and coherent Git commits**; it does **not** authorize PR publication, issue closing, remote push, merge, release, production writes, or new goals.
-- Load `AGENTS.md`, task plan, its exact source artifact (including the GitHub issue for maintenance), and actual git status. For an issue source, regenerate the canonical content digest described in the plan and reconcile only if `Source digest` changed; an `updatedAt`-only change is informational and does not block execution. Do **not** spawn subagents or multiple Codex runs. Use a single checkout/branch. Preserve user changes; unexpected dirty paths beyond the approved plan handoff or an ambiguous base branch → ask before modifying.
+- Load `AGENTS.md`, task plan, its exact source artifact (including the GitHub issue for maintenance), and actual git status. For an issue source, regenerate the canonical content digest described in the plan and reconcile only if `Source digest` changed; an `updatedAt`-only change is informational and does not block execution. Do **not** spawn subagents or multiple Codex/Claude Code runs. Use a single checkout/branch. Preserve user changes; unexpected dirty paths beyond the approved plan handoff or an ambiguous base branch → ask before modifying.
 - Verify `Plan approval: approved` and exact task IDs. Use [references/task-execution.md](references/task-execution.md) for exceptions and evidence format.
 - Locate `scripts/taskctl.py` relative to this SKILL.md. Use the installed `python3` if available. Its status file is Git metadata, not a tracked source file. Commands must point to the **same approved plan** in every session.
 

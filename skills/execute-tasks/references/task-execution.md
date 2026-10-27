@@ -1,7 +1,7 @@
 # Task execution: progress and verification contract
 
 ## State
-`taskctl.py` stores execution state under the current worktree's git metadata via `git rev-parse --git-path agent-workflow/progress.json` (not under the committed source tree). `init` binds it to one approved plan, execution branch, baseline SHA and, for issue work, a base branch/SHA. `status` and `next` may be run in any new Codex conversation within the **same checkout/branch**. For a new clone, bring the approved task plan and Git history, then build a fresh state file with the user's acknowledgment; unrecorded completed work should be reconciled manually and not claimed complete.
+`taskctl.py` stores execution state under the current worktree's git metadata via `git rev-parse --git-path agent-workflow/progress.json` (not under the committed source tree). `init` binds it to one approved plan, execution branch, baseline SHA and, for issue work, a base branch/SHA. `status` and `next` may be run in any new Codex CLI or Claude Code conversation within the **same checkout/branch**. For a new clone, bring the approved task plan and Git history, then build a fresh state file with the user's acknowledgment; unrecorded completed work should be reconciled manually and not claimed complete.
 
 - Pending → `start` → in_progress → `complete` → completed
 - in_progress → `block` → blocked → `resume` → in_progress
@@ -30,22 +30,22 @@ For changes where no runtime test applies, the verification still needs a *perfo
 
 ## Commands
 ```bash
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py validate --plan docs/TASKS.md
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py validate --plan docs/TASKS.md
 # Issue-backed maintenance or OSS:
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md --base-branch main
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md --base-branch main
 # New project (stay on the current branch):
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py status --plan docs/TASKS.md
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py next --plan docs/TASKS.md
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py start --plan docs/TASKS.md --task T001
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py complete --plan docs/TASKS.md --task T001 --evidence /tmp/T001-verification.json
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py block --plan docs/TASKS.md --task T002 --reason "integration database unavailable"
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py resume --plan docs/TASKS.md --task T002
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py verify-plan --plan docs/TASKS.md --evidence /tmp/whole-plan-verification.json
-python3 ~/.codex/skills/execute-tasks/scripts/taskctl.py pr-evidence --plan docs/TASKS.md
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py init --plan docs/TASKS.md
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py status --plan docs/TASKS.md
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py next --plan docs/TASKS.md
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py start --plan docs/TASKS.md --task T001
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py complete --plan docs/TASKS.md --task T001 --evidence /tmp/T001-verification.json
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py block --plan docs/TASKS.md --task T002 --reason "integration database unavailable"
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py resume --plan docs/TASKS.md --task T002
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py verify-plan --plan docs/TASKS.md --evidence /tmp/whole-plan-verification.json
+python3 ~/.agents/skills/execute-tasks/scripts/taskctl.py pr-evidence --plan docs/TASKS.md
 ```
 
-If `CODEX_HOME` is custom, use that installation path instead. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
+Examples use the Codex CLI global skill path. In Claude Code, use `~/.claude/skills/execute-tasks/scripts/taskctl.py`; both paths link to the same source, and the script resolves state from the current Git checkout, not from the install path. If skills are installed elsewhere, resolve `scripts/taskctl.py` relative to the loaded `execute-tasks/SKILL.md`. Pass the full path in each command; agent shells may not keep variables between commands. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
 
 For maintenance issues, save `gh issue view --json title,body,state,labels,comments` output temporarily and run `taskctl.py source-digest --input <json-path>`. The canonical digest covers title, body, state, sorted label names, and comment IDs/bodies; it ignores `updatedAt` and other timestamps. Compare this value with the plan's `Source digest`.
 

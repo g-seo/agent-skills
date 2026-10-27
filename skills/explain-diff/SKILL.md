@@ -1,6 +1,7 @@
 ---
 name: explain-diff
 description: Explain the current branch's proposed PR changes in Korean as a teaching-oriented Notion page covering background, intuition, code flow, trade-offs, evidence, and a five-question quiz. Invoke explicitly before PR publication.
+disable-model-invocation: true
 ---
 
 # Explain Diff
@@ -32,5 +33,5 @@ Use a small flow or component diagram when it makes behavior easier to see; labe
 - Record repository URL, branch, intended base, comparison merge-base SHA, `HEAD` SHA, and the compared commit range near the top of the page. State separately whether local staged or unstaged changes exist.
 - Report only validation supported by inspected evidence. Prefer current `$execute-tasks` task and whole-plan receipts and their exact commands/results. Clearly label checks not run, unavailable, failed, or stale. Do not rerun a validation suite, create or edit code, commit, push, or create a PR as part of this skill.
 - Use the Notion MCP page-creation tool exposed in the current session. Confirm its actual input shape; for the Notion integration, page creation accepts a title, optional parent, and Notion-flavored Markdown content. Use native headings, code fences, callouts, tables, and `<details>/<summary>` toggles for quiz options where supported. Read `notion://docs/enhanced-markdown-spec` through the Notion MCP fetch/resource interface before relying on advanced formatting.
-- If no Notion page-creation MCP tool is available in the current Codex CLI session, stop and explain that Notion MCP must be configured; do not silently substitute a local file, HTML page, or another service. `codex mcp list` can help confirm CLI server configuration when needed.
+- If no Notion page-creation MCP tool is available in the current agent CLI session, stop and explain that Notion MCP must be configured; do not silently substitute a local file, HTML page, or another service. `codex mcp list` (Codex CLI) or `claude mcp list` (Claude Code) can help confirm CLI server configuration when needed.
 - If the destination is not explicit or otherwise unambiguous from the user's instruction, ask where the page should live before creating it. Never guess a shared destination or move/share a page. Create one page at the confirmed destination, then return its URL and a concise description of the evidence and any assumptions or validation limits.

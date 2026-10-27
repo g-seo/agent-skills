@@ -8,12 +8,18 @@
 - Use `scripts/` for reusable automation, `references/` for documentation, and `assets/` for resources when needed.
 
 ## Skill Management
-- Prefer `$skill-creator` when creating or substantially updating skills.
+- Prefer a skill-creator skill when creating or substantially updating skills (`$skill-creator` in Codex CLI; use an equivalent when available in Claude Code).
 - Treat `skills/` as the single source of truth.
-- Manage global skills through symlinks in `~/.agents/skills/`.
-- Add or remove symlinks when skills are created, deleted, or renamed.
+- Manage global skills through per-skill symlinks in `~/.agents/skills/` (Codex CLI) and `~/.claude/skills/` (Claude Code).
+- Add or remove symlinks in both locations when skills are created, deleted, or renamed.
 - Never overwrite existing skills without authorization.
 - Validate and test skills before committing.
+
+## Cross-CLI Compatibility
+- Keep each workflow identical in Codex CLI and Claude Code. Codex invokes a skill as `$skill-name`; Claude Code invokes it as `/skill-name`. Skill text uses `$skill-name` to name sibling skills.
+- Do not hard-code one CLI's install path, tool name, or session model in shared instructions. Resolve bundled files relative to the loaded `SKILL.md`.
+- Use platform-specific settings only when behavior cannot be shared, such as `agents/openai.yaml` (Codex) and Claude-only frontmatter like `disable-model-invocation`. Keep matching policies in both.
+- `CLAUDE.md` imports this file; edit rules here only.
 
 ## Git & Security
 - Update `README.md` when adding, removing, or renaming skills.
