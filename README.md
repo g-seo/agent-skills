@@ -131,6 +131,20 @@ $execute-tasks docs/tasks/issue-123.md의 승인된 작업을 순차 실행해.
 - 사용량 한도로 세션이 멈춰도 commit된 Task와 진행 기록은 worktree에 남는다. 같은 명령을 다른 CLI에서 실행해 이어간다. 멈춘 세션의 lease는 `workspace list`로 확인한 뒤 `workspace release --force`로 해제한다.
 - Registry lock은 `fcntl`을 사용한다. Linux, macOS, WSL에서 동작하며 Windows 기본 Python은 지원하지 않는다.
 
+#### workspace 명령
+
+Issue별 worktree와 registry는 `python3 <agent-skills>/skills/execute-tasks/scripts/taskctl.py workspace ...`로 관리한다.
+
+| 명령 | 용도 | 예시 |
+| --- | --- | --- |
+| `get` | Issue의 worktree와 브랜치를 처음 호출할 때 만들고, 이후에는 같은 항목을 반환한다. | `workspace get --issue 123 --base main` |
+| `list` | Issue별 worktree, 브랜치, dirty 상태, lease를 보여 준다. | `workspace list` |
+| `claim` | 세션이 Issue의 lease를 잡는다. 다른 owner가 잡은 Issue는 실패한다. | `workspace claim --issue 123 --owner <session-id>` |
+| `release` | 같은 owner로 lease를 해제한다. 멈춘 세션의 lease는 `--force`로 해제한다. | `workspace release --issue 123 --owner <session-id>` |
+| `remove` | lease가 없고 깨끗한 worktree를 제거하고 진행 기록을 보관한다. | `workspace remove --issue 123` |
+| `stage` | 단계 완료를 기록하거나 Issue에 단계를 추가한다. | `workspace stage --issue 123 --complete plan` |
+| `state` | Issue 상태(`pending`, `running`, `blocked`, `interrupted`, `done`)를 기록한다. | `workspace state --issue 123 --set blocked --reason "<사유>"` |
+
 #### `$work-issues`로 여러 Issue 처리
 
 세션 하나에서 여러 Issue를 처리하려면 `$work-issues`를 명시적으로 호출한다.
