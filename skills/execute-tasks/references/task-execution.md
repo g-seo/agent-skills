@@ -1,7 +1,7 @@
 # Task execution: progress and verification contract
 
 ## State
-`taskctl.py` stores execution state under the current worktree's git metadata via `git rev-parse --git-path agent-workflow/progress.json` (not under the committed source tree). `init` binds it to one approved plan, execution branch, baseline SHA and, for issue work, a base branch/SHA. `status` and `next` may be run in any new Codex CLI or Claude Code conversation within the **same checkout/branch**. For a new clone, bring the approved task plan and Git history, then build a fresh state file with the user's acknowledgment; unrecorded completed work should be reconciled manually and not claimed complete.
+`taskctl.py` stores execution state under the current worktree's git metadata via `git rev-parse --git-path agent-workflow/progress.json` (not under the committed source tree). `init` binds it to one approved plan, execution branch, baseline SHA and, for issue work, a base branch/SHA. `status` and `next` may be run in any new Codex CLI or Claude Code conversation within the **same worktree/branch**. Each issue worktree has its own ledger, so issues in different worktrees never share state. For a new clone, bring the approved task plan and Git history, then build a fresh state file with the user's acknowledgment; unrecorded completed work should be reconciled manually and not claimed complete.
 
 - Pending → `start` → in_progress → `complete` → completed
 - in_progress → `block` → blocked → `resume` → in_progress
@@ -43,9 +43,16 @@ python3 <this-skill>/scripts/taskctl.py block --plan docs/TASKS.md --task T002 -
 python3 <this-skill>/scripts/taskctl.py resume --plan docs/TASKS.md --task T002
 python3 <this-skill>/scripts/taskctl.py verify-plan --plan docs/TASKS.md --evidence /tmp/whole-plan-verification.json
 python3 <this-skill>/scripts/taskctl.py pr-evidence --plan docs/TASKS.md
+# Issue workspaces (shared registry under the Git common directory):
+python3 <this-skill>/scripts/taskctl.py workspace get --issue 123 --base main
+python3 <this-skill>/scripts/taskctl.py workspace claim --issue 123 --owner <session-id>
+python3 <this-skill>/scripts/taskctl.py workspace release --issue 123 --owner <session-id>
+python3 <this-skill>/scripts/taskctl.py workspace list
+python3 <this-skill>/scripts/taskctl.py workspace remove --issue 123
+python3 <this-skill>/scripts/taskctl.py overlap --plans <plan-a> <plan-b>
 ```
 
-`<this-skill>` is the directory of the loaded `execute-tasks/SKILL.md`; resolve it in the current session instead of assuming an install path. The script resolves state from the current Git checkout, not from its own location. Substitute the absolute path in each command; agent shells may not keep variables between commands. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
+`<this-skill>` is the real path of the directory of the loaded `execute-tasks/SKILL.md`; resolve it, including symlinks, in the current session instead of assuming an install path. The script resolves state from the current Git checkout, not from its own location. Substitute the absolute path in each command; agent shells may not keep variables between commands. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
 
 For maintenance issues, save `gh issue view --json title,body,state,labels,comments` output temporarily and run `taskctl.py source-digest --input <json-path>`. The canonical digest covers title, body, state, sorted label names, and comment IDs/bodies; it ignores `updatedAt` and other timestamps. Compare this value with the plan's `Source digest`.
 

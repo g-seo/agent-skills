@@ -6,7 +6,7 @@ description: On explicit user request, repair actionable maintainer feedback, me
 # Repair PR — one PR, one pass
 
 ## Preconditions
-- User explicitly identifies PR URL/number or unambiguous current PR and authorizes repair. Use existing branch; for OSS confirm fork head and upstream base. Read `AGENTS.md`, `CONTRIBUTING.md`, repository PR/review policies.
+- User explicitly identifies PR URL/number or unambiguous current PR and authorizes repair. If the PR's head branch belongs to a registered issue workspace (sibling `execute-tasks/scripts/taskctl.py workspace list`, called by its resolved real path), work in that worktree; otherwise use the existing branch in the current checkout as before. Run Git with the working checkout as the working directory and no options before the subcommand (no `git -C`). Use existing branch; for OSS confirm fork head and upstream base. Read `AGENTS.md`, `CONTRIBUTING.md`, repository PR/review policies.
 - Inspect `git status`, pending operations, head SHA, current GitHub PR state and expected branch. Dirty workspace or ambiguity → pause rather than discard changes. Do not use stack-maintenance tools or subagents.
 - Gather relevant CI check conclusions and failed logs via `gh pr checks` / `gh run view --log-failed` where allowed; read unresolved maintainer and other reviewer feedback. Distinguish stale findings, suggestions and actionable defects.
 
