@@ -14,6 +14,8 @@ never ask the user (return blocked or needs-approval instead), release the lease
 and finish with the JSON stage receipt.
 ```
 
+Do not add implementation instructions, file locations or content guidance. The worker reads the approved plan through `$execute-tasks`; a plan gap is a `blocked` receipt, not a handoff note.
+
 ## Runners
 
 | Runner | Claude Code | Codex CLI | Usage limits |
