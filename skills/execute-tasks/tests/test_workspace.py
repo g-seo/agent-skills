@@ -1,5 +1,7 @@
+import fcntl
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
@@ -96,6 +98,51 @@ class WorkspaceTests(unittest.TestCase):
         self.workspace("get", "--issue", "7")
         self.assertEqual([item["issue"] for item in self.workspace("list")["workspaces"]], [7])
         self.assertTrue(other.is_dir())
+
+    def test_claim_and_release_lease(self):
+        self.workspace("get", "--issue", "7")
+        claimed = self.workspace("claim", "--issue", "7", "--owner", "a")
+        self.assertEqual(claimed["lease"]["owner"], "a")
+        self.assertEqual(self.workspace("claim", "--issue", "7", "--owner", "a")["lease"], claimed["lease"])
+        error = self.workspace("claim", "--issue", "7", "--owner", "b", ok=False)
+        self.assertIn("claimed by a", error["error"])
+        error = self.workspace("release", "--issue", "7", "--owner", "b", ok=False)
+        self.assertIn("claimed by a", error["error"])
+        error = self.workspace("remove", "--issue", "7", ok=False)
+        self.assertIn("release it first", error["error"])
+        self.assertEqual(self.workspace("list")["workspaces"][0]["lease"]["owner"], "a")
+        self.assertIsNone(self.workspace("release", "--issue", "7", "--owner", "a")["lease"])
+        self.assertEqual(self.workspace("claim", "--issue", "7", "--owner", "b")["lease"]["owner"], "b")
+        self.assertIsNone(self.workspace("release", "--issue", "7", "--owner", "a", "--force")["lease"])
+        error = self.workspace("claim", "--issue", "99", "--owner", "a", ok=False)
+        self.assertIn("workspace get", error["error"])
+
+    def test_parallel_processes_keep_registry_consistent(self):
+        def spawn(*args):
+            return subprocess.Popen(["python3", str(SCRIPT), "workspace", *args], cwd=self.root,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        getters = [spawn("get", "--issue", str(issue)) for issue in range(1, 7)]
+        for process in getters:
+            process.communicate()
+            self.assertEqual(process.returncode, 0)
+        claimers = [spawn("claim", "--issue", "3", "--owner", f"owner-{index}") for index in range(6)]
+        results = [process.communicate() and process.returncode for process in claimers]
+        self.assertEqual(results.count(0), 1)
+        listed = self.workspace("list")["workspaces"]
+        self.assertEqual([item["issue"] for item in listed], [1, 2, 3, 4, 5, 6])
+        self.assertTrue(listed[2]["lease"]["owner"].startswith("owner-"))
+        self.assertEqual(len(cmd("git", "worktree", "list", cwd=self.root).stdout.splitlines()), 7)
+
+    def test_lock_timeout_fails_without_partial_write(self):
+        self.workspace("get", "--issue", "7")
+        lock_path = self.root / ".git" / "agent-workflow" / "issues" / ".lock"
+        with open(lock_path, "a", encoding="utf-8") as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            error = self.workspace("claim", "--issue", "7", "--owner", "a", "--lock-timeout", "0.3", ok=False)
+            fcntl.flock(handle, fcntl.LOCK_UN)
+        self.assertIn("locked by another process", error["error"])
+        self.assertIsNone(self.workspace("list")["workspaces"][0].get("lease"))
 
     def test_existing_ledger_commands_still_use_worktree_git_path(self):
         entry = self.workspace("get", "--issue", "7")

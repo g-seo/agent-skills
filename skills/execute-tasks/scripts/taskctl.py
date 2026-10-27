@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 
 HEAD_RE = re.compile(r"^## (T\d{3}):\s*(.+)$", re.MULTILINE)
@@ -335,10 +336,20 @@ def initialize(args, plan, root, state_path, branch, head, state):
 
 
 @contextmanager
-def registry_lock(registry):
+def registry_lock(registry, timeout=30.0):
     registry.mkdir(parents=True, exist_ok=True)
     with open(registry / ".lock", "a", encoding="utf-8") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise WorkflowError(
+                        f"Workspace registry is locked by another process after {timeout:g}s; retry later"
+                    )
+                time.sleep(0.05)
         try:
             yield
         finally:
@@ -424,7 +435,7 @@ def infer_issue(registry, current):
 
 def workspace_get(args, main_root, common, registry, current):
     issue = args.issue if args.issue is not None else infer_issue(registry, current)
-    with registry_lock(registry):
+    with registry_lock(registry, args.lock_timeout):
         entry = registry_read(registry, issue)
         if entry is not None:
             path = str(Path(entry["worktree"]).resolve())
@@ -472,10 +483,12 @@ def workspace_list(registry):
 
 
 def workspace_remove(args, main_root, registry):
-    with registry_lock(registry):
+    with registry_lock(registry, args.lock_timeout):
         entry = registry_read(registry, args.issue)
         if entry is None:
             raise WorkflowError(f"Issue #{args.issue} has no registered workspace; nothing removed")
+        if entry.get("lease"):
+            raise WorkflowError(f"Issue #{args.issue} is claimed by {entry['lease']['owner']}; release it first")
         path = Path(entry["worktree"])
         if path.is_dir():
             if git("status", "--porcelain", "--untracked-files=normal", cwd=path):
@@ -487,12 +500,36 @@ def workspace_remove(args, main_root, registry):
         return {"removed": True, "issue": args.issue, "worktree": str(path), "branch": entry["branch"]}
 
 
+def workspace_lease(args, registry):
+    with registry_lock(registry, args.lock_timeout):
+        entry = registry_read(registry, args.issue)
+        if entry is None:
+            raise WorkflowError(f"Issue #{args.issue} has no registered workspace; run `workspace get` first")
+        lease = entry.get("lease")
+        if args.workspace_command == "claim":
+            if lease and lease["owner"] != args.owner:
+                raise WorkflowError(
+                    f"Issue #{args.issue} is claimed by {lease['owner']} since {lease['claimed_at']}; "
+                    "inspect its worktree and release it explicitly if that session has stopped"
+                )
+            entry["lease"] = {"owner": args.owner, "claimed_at": lease["claimed_at"] if lease else now()}
+        else:
+            if lease and lease["owner"] != args.owner and not args.force:
+                raise WorkflowError(f"Issue #{args.issue} is claimed by {lease['owner']}; use --force only after "
+                                    "confirming that session has stopped")
+            entry["lease"] = None
+        atomic_json(registry / f"{args.issue}.json", entry)
+        return entry
+
+
 def workspace_act(args):
     main_root, common, registry, current = workspace_context()
     if args.workspace_command == "get":
         return workspace_get(args, main_root, common, registry, current)
     if args.workspace_command == "list":
         return workspace_list(registry)
+    if args.workspace_command in ("claim", "release"):
+        return workspace_lease(args, registry)
     return workspace_remove(args, main_root, registry)
 
 
@@ -670,6 +707,14 @@ def cli():
     workspace_commands.add_parser("list")
     remove_parser = workspace_commands.add_parser("remove")
     remove_parser.add_argument("--issue", type=int, required=True)
+    for name in ("claim", "release"):
+        lease_parser = workspace_commands.add_parser(name)
+        lease_parser.add_argument("--issue", type=int, required=True)
+        lease_parser.add_argument("--owner", required=True)
+        if name == "release":
+            lease_parser.add_argument("--force", action="store_true")
+    for command_parser in workspace_commands.choices.values():
+        command_parser.add_argument("--lock-timeout", type=float, default=30.0)
     for name in (
         "validate", "init", "status", "next", "start", "complete", "block", "resume",
         "sync-plan", "verify-plan", "pr-evidence",
