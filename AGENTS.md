@@ -25,6 +25,7 @@
 - Keep every workflow usable by one agent and by several concurrent agents. One issue = one worktree = one unit skill run; parallelism is only the number of concurrent runs.
 - Issue-scoped skills resolve their location with `taskctl.py workspace get` instead of the current checkout or branch.
 - Run Git with the target worktree as the working directory and no options before the subcommand (no `git -C`). Call `taskctl.py` by its resolved real path. Codex allowlist rules in `templates/codex/agent-workflow.rules` match exact command prefixes.
+- Issue-scoped skills follow the stage contract in `skills/work-issues/references/stage-contract.md`: they accept a delegated non-interactive run and end with a stage receipt. Check new or changed pipeline stages with `taskctl.py pipeline validate`.
 
 ## Git & Security
 - Update `README.md` when adding, removing, or renaming skills.
