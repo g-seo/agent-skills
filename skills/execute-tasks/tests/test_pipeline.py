@@ -82,6 +82,63 @@ class PipelineTests(unittest.TestCase):
         error = self.taskctl("pipeline", "show", ok=False)
         self.assertIn(str(path.resolve()), error["error"])
 
+    def test_stage_progress_in_order(self):
+        self.taskctl("workspace", "get", "--issue", "4")
+        shown = self.taskctl("pipeline", "show", "--issue", "4")
+        self.assertEqual((shown["next_stage"], shown["state"]["value"]), ("precheck", "pending"))
+        error = self.taskctl("workspace", "stage", "--issue", "4", "--complete", "execute", ok=False)
+        self.assertIn("cannot complete before precheck", error["error"])
+        error = self.taskctl("workspace", "stage", "--issue", "4", "--complete", "deploy", ok=False)
+        self.assertIn("Unknown stage", error["error"])
+        self.assertEqual(self.taskctl("pipeline", "show", "--issue", "4")["completed"], [])
+        for stage in ("precheck", "plan", "execute"):
+            self.taskctl("workspace", "stage", "--issue", "4", "--complete", stage)
+        self.assertEqual(self.taskctl("pipeline", "show", "--issue", "4")["next_stage"], "explain")
+        self.taskctl("workspace", "stage", "--issue", "4", "--complete", "pr")
+        shown = self.taskctl("pipeline", "show", "--issue", "4")
+        self.assertEqual((shown["completed"], shown["next_stage"]), (["precheck", "plan", "execute", "pr"], None))
+        self.assertEqual((shown["skipped_optional"], shown["skipped_new"]), (["explain"], []))
+
+    def test_one_off_stage_applies_to_one_issue(self):
+        for issue in ("4", "5"):
+            self.taskctl("workspace", "get", "--issue", issue)
+        error = self.taskctl("workspace", "stage", "--issue", "4", "--insert", "write-ste", "--after", "execute",
+                             "--id", "polish", "--modifies-code", ok=False)
+        self.assertIn("polish modifies code but is not verified", error["error"])
+        self.taskctl("workspace", "stage", "--issue", "4", "--insert", "write-ste", "--after", "execute",
+                     "--id", "polish")
+        four = [stage["id"] for stage in self.taskctl("pipeline", "show", "--issue", "4")["stages"]]
+        five = [stage["id"] for stage in self.taskctl("pipeline", "show", "--issue", "5")["stages"]]
+        self.assertEqual(four, ["precheck", "plan", "execute", "polish", "explain", "pr"])
+        self.assertNotIn("polish", five)
+        error = self.taskctl("workspace", "stage", "--issue", "5", "--insert", "write-ste", "--after", "plan",
+                             "--access", "remote", ok=False)
+        self.assertIn("remote stages require gate", error["error"])
+
+    def test_pipeline_edit_applies_to_remaining_stages_only(self):
+        self.taskctl("workspace", "get", "--issue", "4")
+        for stage in ("precheck", "plan"):
+            self.taskctl("workspace", "stage", "--issue", "4", "--complete", stage)
+        stages = self.taskctl("pipeline", "show")["stages"]
+        early = {"id": "lint", "skill": "write-ste", "access": "read"}
+        late = {"id": "review", "skill": "write-ste", "access": "read"}
+        self.write_pipeline({"stages": [stages[0], early, stages[1], stages[2], late, stages[4]]})
+        shown = self.taskctl("pipeline", "show", "--issue", "4")
+        self.assertEqual(shown["skipped_new"], ["lint"])
+        self.assertEqual(shown["next_stage"], "execute")
+        self.taskctl("workspace", "stage", "--issue", "4", "--complete", "execute")
+        self.assertEqual(self.taskctl("pipeline", "show", "--issue", "4")["next_stage"], "review")
+
+    def test_run_state_is_recorded_and_listed(self):
+        self.taskctl("workspace", "get", "--issue", "4")
+        self.assertEqual(self.taskctl("workspace", "list")["workspaces"][0]["state"], {"value": "pending"})
+        self.taskctl("workspace", "state", "--issue", "4", "--set", "interrupted", "--reason", "usage limit")
+        listed = self.taskctl("workspace", "list")["workspaces"][0]["state"]
+        self.assertEqual((listed["value"], listed["reason"]), ("interrupted", "usage limit"))
+        error = cmd("python3", str(SCRIPT), "workspace", "state", "--issue", "4", "--set", "lost",
+                    cwd=self.root, ok=False)
+        self.assertIn("invalid choice", error.stderr)
+
     def test_validate_explicit_file(self):
         path = Path(self.temporary_directory.name) / "candidate.json"
         path.write_text(json.dumps({"stages": self.stages()}), encoding="utf-8")

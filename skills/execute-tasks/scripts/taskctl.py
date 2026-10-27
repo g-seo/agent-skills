@@ -485,7 +485,8 @@ def workspace_list(registry):
         dirty = None
         if exists:
             dirty = bool(git("status", "--porcelain", "--untracked-files=normal", cwd=path))
-        result.append({**entry, "exists": exists, "dirty": dirty})
+        result.append({**entry, "state": entry.get("state") or {"value": "pending"},
+                       "exists": exists, "dirty": dirty})
     return {"workspaces": result}
 
 
@@ -544,6 +545,10 @@ def workspace_act(args):
         return workspace_list(registry)
     if args.workspace_command in ("claim", "release"):
         return workspace_lease(args, registry)
+    if args.workspace_command == "stage":
+        return workspace_stage(args, registry)
+    if args.workspace_command == "state":
+        return workspace_state(args, registry)
     return workspace_remove(args, main_root, registry)
 
 
@@ -676,6 +681,78 @@ def load_pipeline(path=None):
     return pipeline, str(path)
 
 
+RUN_STATES = {"pending", "running", "blocked", "interrupted", "done"}
+
+
+def issue_stages(stages, entry):
+    stages = [dict(stage) for stage in stages]
+    for extra in entry.get("extra_stages", []):
+        position = next((index for index, stage in enumerate(stages) if stage["id"] == extra["after"]), None)
+        if position is None:
+            raise WorkflowError(f"One-off stage {extra['stage']['id']} follows missing stage {extra['after']}")
+        stages.insert(position + 1, {**extra["stage"], "one_off": True})
+    return validate_stages(stages)
+
+
+def issue_progress(stages, entry):
+    completed = entry.get("stages", [])
+    ids = [stage["id"] for stage in stages]
+    last_done = max((ids.index(stage) for stage in completed if stage in ids), default=-1)
+    passed = [stage for stage in stages[:last_done + 1] if stage["id"] not in completed]
+    next_stage = next((ident for ident in ids[last_done + 1:] if ident not in completed), None)
+    return {
+        "completed": completed,
+        "skipped_new": [stage["id"] for stage in passed if not stage["optional"]],
+        "skipped_optional": [stage["id"] for stage in passed if stage["optional"]],
+        "next_stage": next_stage,
+        "state": entry.get("state") or {"value": "pending"},
+    }
+
+
+def workspace_stage(args, registry):
+    with registry_lock(registry, args.lock_timeout):
+        entry = registry_read(registry, args.issue)
+        if entry is None:
+            raise WorkflowError(f"Issue #{args.issue} has no registered workspace; run `workspace get` first")
+        pipeline, _ = load_pipeline()
+        stages = issue_stages(validate_stages(pipeline.get("stages")), entry)
+        ids = [stage["id"] for stage in stages]
+        if args.complete:
+            if args.complete not in ids:
+                raise WorkflowError(f"Unknown stage for issue #{args.issue}: {args.complete}")
+            if args.complete in entry.get("stages", []):
+                return entry
+            skipped = issue_progress(stages, entry)["skipped_new"]
+            blocking = [
+                stage["id"] for stage in stages[:ids.index(args.complete)]
+                if stage["id"] not in entry.get("stages", []) and not stage["optional"]
+                and stage["id"] not in skipped
+            ]
+            if blocking:
+                raise WorkflowError(f"Stage {args.complete} cannot complete before {blocking[0]}")
+            entry["stages"] = [ident for ident in ids if ident in {*entry.get("stages", []), args.complete}]
+        else:
+            if args.after not in ids:
+                raise WorkflowError(f"Unknown stage to insert after: {args.after}")
+            stage = {"id": args.id or args.insert, "skill": args.insert, "access": args.access,
+                     "gate": args.gate, "modifies-code": args.modifies_code, "verifies": args.verifies}
+            extras = entry.get("extra_stages", []) + [{"after": args.after, "stage": stage}]
+            issue_stages(validate_stages(pipeline.get("stages")), {**entry, "extra_stages": extras})
+            entry["extra_stages"] = extras
+        atomic_json(registry / f"{args.issue}.json", entry)
+        return entry
+
+
+def workspace_state(args, registry):
+    with registry_lock(registry, args.lock_timeout):
+        entry = registry_read(registry, args.issue)
+        if entry is None:
+            raise WorkflowError(f"Issue #{args.issue} has no registered workspace; run `workspace get` first")
+        entry["state"] = {"value": args.set, "reason": args.reason, "updated_at": now()}
+        atomic_json(registry / f"{args.issue}.json", entry)
+        return entry
+
+
 def pipeline_act(args):
     pipeline, source = load_pipeline(args.file)
     stages = validate_stages(pipeline.get("stages"))
@@ -687,7 +764,14 @@ def pipeline_act(args):
         concurrency = DEFAULT_PIPELINE["concurrency"]
     if args.pipeline_command == "validate":
         return {"valid": True, "source": source, "stage_count": len(stages), "concurrency": concurrency}
-    return {"source": source, "concurrency": concurrency, "stages": stages}
+    if args.issue is None:
+        return {"source": source, "concurrency": concurrency, "stages": stages}
+    entry = registry_read(workspace_context()[2], args.issue)
+    if entry is None:
+        raise WorkflowError(f"Issue #{args.issue} has no registered workspace; run `workspace get` first")
+    stages = issue_stages(stages, entry)
+    return {"source": source, "concurrency": concurrency, "issue": args.issue, "stages": stages,
+            **issue_progress(stages, entry)}
 
 
 def act(args):
@@ -865,6 +949,8 @@ def cli():
         command_parser = pipeline_commands.add_parser(name)
         command_parser.add_argument("--file")
         command_parser.add_argument("--concurrency", type=int)
+        if name == "show":
+            command_parser.add_argument("--issue", type=int)
     overlap_parser = subparsers.add_parser("overlap")
     overlap_parser.add_argument("--plans", nargs="+", required=True)
     workspace_parser = subparsers.add_parser("workspace")
@@ -882,6 +968,21 @@ def cli():
         lease_parser.add_argument("--owner", required=True)
         if name == "release":
             lease_parser.add_argument("--force", action="store_true")
+    stage_parser = workspace_commands.add_parser("stage")
+    stage_parser.add_argument("--issue", type=int, required=True)
+    stage_action = stage_parser.add_mutually_exclusive_group(required=True)
+    stage_action.add_argument("--complete")
+    stage_action.add_argument("--insert", metavar="SKILL")
+    stage_parser.add_argument("--after")
+    stage_parser.add_argument("--id")
+    stage_parser.add_argument("--access", default="local-write")
+    stage_parser.add_argument("--gate", default="none")
+    stage_parser.add_argument("--modifies-code", action="store_true")
+    stage_parser.add_argument("--verifies", action="store_true")
+    state_parser = workspace_commands.add_parser("state")
+    state_parser.add_argument("--issue", type=int, required=True)
+    state_parser.add_argument("--set", required=True, choices=sorted(RUN_STATES))
+    state_parser.add_argument("--reason")
     for command_parser in workspace_commands.choices.values():
         command_parser.add_argument("--lock-timeout", type=float, default=30.0)
     for name in (
