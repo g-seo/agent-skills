@@ -69,6 +69,7 @@ sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/ru
 | `$create-pr` | 검증된 브랜치를 Push하고 GitHub PR을 생성한다. | 원격 브랜치와 PR |
 | `$cleanup-branch` | 저장소에 남은 로컬·원격 작업 브랜치를 검사하고 PR 병합이 확인된 브랜치를 정리한다. | base 브랜치 최신화, 정리·보존 결과 |
 | `$repair-pr` | 기존 PR의 리뷰 지적, conflict 또는 CI 실패를 수정한다. | 기존 PR 브랜치의 수정과 Push |
+| `$work-issues` | 여러 Issue를 단계 pipeline에 따라 순차 또는 병렬로 처리하고, 계획과 PR 승인을 한 번씩 묶어 받는다. | Issue별 worktree, 승인된 계획, Commit, PR |
 | `$write-ste` | 기술 문서와 Issue, PR 문구를 의미 변경 없이 명확하게 다듬는다. | 수정된 기술 텍스트 |
 
 ## 사용 방법
@@ -129,6 +130,43 @@ $execute-tasks docs/tasks/issue-123.md의 승인된 작업을 순차 실행해.
 - 먼저 병합된 PR 때문에 남은 PR의 base가 바뀌면 `$repair-pr`로 갱신한다.
 - 사용량 한도로 세션이 멈춰도 commit된 Task와 진행 기록은 worktree에 남는다. 같은 명령을 다른 CLI에서 실행해 이어간다. 멈춘 세션의 lease는 `workspace list`로 확인한 뒤 `workspace release --force`로 해제한다.
 - Registry lock은 `fcntl`을 사용한다. Linux, macOS, WSL에서 동작하며 Windows 기본 Python은 지원하지 않는다.
+
+#### `$work-issues`로 여러 Issue 처리
+
+세션 하나에서 여러 Issue를 처리하려면 `$work-issues`를 명시적으로 호출한다.
+
+```text
+$work-issues #123 #456                     # 기본: 현재 CLI의 subagent, 동시 실행 2개
+$work-issues #123 #456 --concurrency 1     # 단일 에이전트처럼 한 Issue씩 처리
+$work-issues #123 #456 --runner process    # claude -p / codex exec worker
+```
+
+- 흐름: pipeline 검증 → 사전 점검(Git 쓰기 확인) → Issue별 precheck와 `$plan-tasks` → 계획 승인 한 번 → 겹치지 않는 Issue를 슬롯에 배정해 `$execute-tasks` 실행 → PR 승인 한 번 → Issue별 `$create-pr`.
+- 계획이 겹치는 Issue는 앞 Issue의 PR이 병합된 뒤 실행한다. 중단된 worker는 `interrupted`로 기록되고, 다시 호출하면 registry에서 이어서 진행한다.
+
+| 실행 방식 | 띄우는 주체 | 사용량 한도 |
+| --- | --- | --- |
+| manual | 사용자가 터미널마다 단위 스킬 실행 | 터미널(CLI)별로 분리 |
+| subagent | `$work-issues`가 현재 CLI의 subagent 실행 | coordinator와 공유 |
+| process | `$work-issues`가 `claude -p` 또는 `codex exec` 실행 | CLI별로 분리 |
+
+단계는 저장소의 `.agent-workflow/pipeline.json`으로 바꿀 수 있다. 파일이 없으면 `precheck → plan → execute → explain(선택) → pr` 기본값을 쓴다. 추가한 단계는 아직 도달하지 않은 단계에만 적용된다. 수정 후 `taskctl.py pipeline validate`로 확인한다.
+
+```json
+{
+  "concurrency": 2,
+  "stages": [
+    {"id": "precheck", "skill": "builtin:precheck", "access": "read"},
+    {"id": "plan", "skill": "plan-tasks", "gate": "approval", "access": "local-write"},
+    {"id": "execute", "skill": "execute-tasks", "access": "local-write", "modifies-code": true, "verifies": true, "parallel": true},
+    {"id": "polish", "skill": "write-ste", "access": "local-write", "modifies-code": true},
+    {"id": "verify", "skill": "execute-tasks", "access": "local-write", "verifies": true},
+    {"id": "pr", "skill": "create-pr", "gate": "approval", "access": "remote"}
+  ]
+}
+```
+
+단계 필드와 receipt 형식은 [stage-contract.md](skills/work-issues/references/stage-contract.md), runner별 차이와 검증 현황은 [runtimes.md](skills/work-issues/references/runtimes.md)를 따른다.
 
 필요하면 구현과 검증 후 PR을 생성한다.
 
