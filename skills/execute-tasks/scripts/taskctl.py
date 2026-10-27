@@ -9,6 +9,7 @@ import argparse
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import fcntl
+import fnmatch
 import hashlib
 import json
 import os
@@ -22,6 +23,7 @@ import time
 
 HEAD_RE = re.compile(r"^## (T\d{3}):\s*(.+)$", re.MULTILINE)
 DEP_RE = re.compile(r"^- Depends on:\s*(.+?)\s*$", re.MULTILINE)
+TOUCHES_RE = re.compile(r"^- Touches:\s*(.*?)\s*$", re.MULTILINE)
 APPROVED_RE = re.compile(r"^Plan approval:\s*approved\s*$", re.MULTILINE | re.IGNORECASE)
 SOURCE_DIGEST_RE = re.compile(r"^Source digest:\s*(sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
 SOURCE_RE = re.compile(r"^Source:\s*(.+?)\s*$", re.MULTILINE)
@@ -78,7 +80,12 @@ def plan_load(path, require_approval=False):
         deps = [] if raw.lower() in ("none", "[]") else [item.strip() for item in raw.split(",")]
         if any(not re.fullmatch(r"T\d{3}", dep) for dep in deps) or len(deps) != len(set(deps)):
             raise WorkflowError(f"{ident}: invalid/duplicate dependencies: {raw}")
+        touches = TOUCHES_RE.findall(block)
+        if len(touches) > 1:
+            raise WorkflowError(f"{ident}: at most one `- Touches:` line is allowed")
         tasks.append({"id": ident, "title": title.strip(), "depends_on": deps,
+                      "touches": [item.strip() for item in touches[0].split(",") if item.strip()]
+                      if touches else None,
                       "fingerprint": digest(block)})
     ids = [task["id"] for task in tasks]
     if len(ids) != len(set(ids)):
@@ -533,11 +540,58 @@ def workspace_act(args):
     return workspace_remove(args, main_root, registry)
 
 
+def touch_overlaps(left, right):
+    """Approximate glob intersection; reports a false overlap rather than miss a real one."""
+    def normalize(pattern):
+        pattern = pattern.removeprefix("shared:").strip()
+        return pattern + "**" if pattern.endswith("/") else pattern
+
+    def static(pattern):
+        match = re.search(r"[*?\[]", pattern)
+        return pattern[:match.start()] if match else pattern
+
+    left, right = normalize(left), normalize(right)
+    left_wild, right_wild = static(left) != left, static(right) != right
+    if not left_wild and not right_wild:
+        return left == right
+    if left_wild and not right_wild:
+        return fnmatch.fnmatchcase(right, left) or right.startswith(static(left))
+    if right_wild and not left_wild:
+        return fnmatch.fnmatchcase(left, right) or left.startswith(static(right))
+    return static(left).startswith(static(right)) or static(right).startswith(static(left))
+
+
+def overlap(paths):
+    plans, unknown = [], []
+    for path in paths:
+        plan = plan_load(path)
+        missing = [task["id"] for task in plan["tasks"] if task["touches"] is None]
+        if missing:
+            unknown.append({"plan": plan["path"], "tasks": missing})
+        plans.append((plan["path"], sorted({item for task in plan["tasks"] for item in task["touches"] or []})))
+    conflicts = []
+    for index, (left_path, left_touches) in enumerate(plans):
+        for right_path, right_touches in plans[index + 1:]:
+            pairs = [
+                [left, right] for left in left_touches for right in right_touches
+                if left.startswith("shared:") or right.startswith("shared:") or touch_overlaps(left, right)
+            ]
+            if pairs:
+                conflicts.append({"plans": [left_path, right_path], "paths": pairs})
+    return {
+        "verdict": "sequential" if conflicts or unknown else "parallel",
+        "conflicts": conflicts,
+        "unknown": unknown,
+    }
+
+
 def act(args):
     if args.command == "source-digest":
         return canonical_issue_digest(args.input)
     if args.command == "workspace":
         return workspace_act(args)
+    if args.command == "overlap":
+        return overlap(args.plans)
 
     plan = plan_load(args.plan, require_approval=args.command != "validate")
     if args.command == "validate":
@@ -698,6 +752,8 @@ def cli():
     subparsers = parser.add_subparsers(dest="command", required=True)
     digest_parser = subparsers.add_parser("source-digest")
     digest_parser.add_argument("--input", required=True, help="gh issue view JSON path, or - for stdin")
+    overlap_parser = subparsers.add_parser("overlap")
+    overlap_parser.add_argument("--plans", nargs="+", required=True)
     workspace_parser = subparsers.add_parser("workspace")
     workspace_commands = workspace_parser.add_subparsers(dest="workspace_command", required=True)
     get_parser = workspace_commands.add_parser("get")
