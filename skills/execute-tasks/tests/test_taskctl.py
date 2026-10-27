@@ -289,5 +289,59 @@ Plan approval: approved
         self.assertNotEqual(json.loads(first.stdout)["source_digest"], json.loads(third.stdout)["source_digest"])
 
 
+class OverlapTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.root = Path(self.temporary_directory.name)
+
+    def plan(self, name, *touches):
+        lines = ["# Tasks", "Plan approval: draft", ""]
+        for index, touch in enumerate(touches, start=1):
+            lines += [f"## T{index:03d}: task {index}", "- Depends on: none"]
+            if touch is not None:
+                lines.append(f"- Touches: {touch}")
+            lines.append("")
+        path = self.root / f"{name}.md"
+        path.write_text("\n".join(lines), encoding="utf-8")
+        return str(path)
+
+    def overlap(self, *plans, ok=True):
+        result = cmd("python3", str(SCRIPT), "overlap", "--plans", *plans, cwd=self.root, ok=ok)
+        return json.loads(result.stdout if result.returncode == 0 else result.stderr)
+
+    def test_disjoint_plans_are_parallel(self):
+        result = self.overlap(self.plan("a", "src/auth/*.py, docs/auth.md"), self.plan("b", "src/api/, README.md"))
+        self.assertEqual(result["verdict"], "parallel")
+        self.assertEqual(result["conflicts"], [])
+
+    def test_shared_file_or_glob_intersection_is_sequential(self):
+        result = self.overlap(self.plan("a", "src/api/routes.py"), self.plan("b", "src/api/*.py"))
+        self.assertEqual(result["verdict"], "sequential")
+        self.assertEqual(result["conflicts"][0]["paths"], [["src/api/routes.py", "src/api/*.py"]])
+        result = self.overlap(self.plan("c", "src/"), self.plan("d", "src/api/**"))
+        self.assertEqual(result["verdict"], "sequential")
+        result = self.overlap(self.plan("e", "README.md"), self.plan("f", "README.md"))
+        self.assertEqual(result["verdict"], "sequential")
+
+    def test_shared_marker_conflicts_with_every_other_plan(self):
+        result = self.overlap(self.plan("a", "shared:package-lock.json"), self.plan("b", "src/x.py"))
+        self.assertEqual(result["verdict"], "sequential")
+
+    def test_missing_touches_is_unknown_but_valid(self):
+        missing = self.plan("a", "src/x.py", None)
+        result = self.overlap(missing, self.plan("b", "docs/y.md"))
+        self.assertEqual(result["verdict"], "sequential")
+        self.assertEqual(result["unknown"], [{"plan": str(Path(missing).resolve()), "tasks": ["T002"]}])
+        validated = cmd("python3", str(SCRIPT), "validate", "--plan", missing, cwd=self.root)
+        self.assertTrue(json.loads(validated.stdout)["valid"])
+
+    def test_more_than_one_touches_line_is_invalid(self):
+        path = self.root / "bad.md"
+        path.write_text("# Tasks\n\n## T001: x\n- Depends on: none\n- Touches: a\n- Touches: b\n", encoding="utf-8")
+        error = cmd("python3", str(SCRIPT), "validate", "--plan", str(path), cwd=self.root, ok=False)
+        self.assertIn("at most one `- Touches:`", json.loads(error.stderr)["error"])
+
+
 if __name__ == "__main__":
     unittest.main()

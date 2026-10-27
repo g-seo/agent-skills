@@ -7,6 +7,7 @@ Plan approval: draft
 
 ## T001: <one coherent, verifiable change>
 - Depends on: none
+- Touches: <paths or globs this task changes; prefix `shared:` for migrations, lockfiles or shared config>
 - Goal: <observable outcome>
 - Scope: <exact boundaries>
 - Out of scope: <unrelated behavior>
@@ -18,6 +19,7 @@ Plan approval: draft
 
 ## T002: <next change>
 - Depends on: T001
+- Touches: ...
 - Goal: ...
 - Scope: ...
 - Out of scope: ...

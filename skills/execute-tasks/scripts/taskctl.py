@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Local single-agent task progress ledger.
+"""Local task progress ledger and per-issue workspace registry.
 
-The helper records workflow state and evidence. It does not execute tests, create
-commits or branches, or perform remote writes. Stdlib only, Python 3.10+.
+The helper records workflow state and evidence, and `workspace` creates one Git
+worktree and branch per issue. It does not execute tests, create commits, or
+perform remote writes other than fetching the base branch. Stdlib only, Python 3.10+.
 """
 import argparse
+from contextlib import contextmanager
 from datetime import datetime, timezone
+import fcntl
+import fnmatch
 import hashlib
 import json
 import os
@@ -14,10 +18,12 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 
 HEAD_RE = re.compile(r"^## (T\d{3}):\s*(.+)$", re.MULTILINE)
 DEP_RE = re.compile(r"^- Depends on:\s*(.+?)\s*$", re.MULTILINE)
+TOUCHES_RE = re.compile(r"^- Touches:\s*(.*?)\s*$", re.MULTILINE)
 APPROVED_RE = re.compile(r"^Plan approval:\s*approved\s*$", re.MULTILINE | re.IGNORECASE)
 SOURCE_DIGEST_RE = re.compile(r"^Source digest:\s*(sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
 SOURCE_RE = re.compile(r"^Source:\s*(.+?)\s*$", re.MULTILINE)
@@ -74,7 +80,12 @@ def plan_load(path, require_approval=False):
         deps = [] if raw.lower() in ("none", "[]") else [item.strip() for item in raw.split(",")]
         if any(not re.fullmatch(r"T\d{3}", dep) for dep in deps) or len(deps) != len(set(deps)):
             raise WorkflowError(f"{ident}: invalid/duplicate dependencies: {raw}")
+        touches = TOUCHES_RE.findall(block)
+        if len(touches) > 1:
+            raise WorkflowError(f"{ident}: at most one `- Touches:` line is allowed")
         tasks.append({"id": ident, "title": title.strip(), "depends_on": deps,
+                      "touches": [item.strip() for item in touches[0].split(",") if item.strip()]
+                      if touches else None,
                       "fingerprint": digest(block)})
     ids = [task["id"] for task in tasks]
     if len(ids) != len(set(ids)):
@@ -331,9 +342,263 @@ def initialize(args, plan, root, state_path, branch, head, state):
             "baseline_sha": head, "plan_storage": storage, "state_path": str(state_path)}
 
 
+@contextmanager
+def registry_lock(registry, timeout=30.0):
+    registry.mkdir(parents=True, exist_ok=True)
+    with open(registry / ".lock", "a", encoding="utf-8") as handle:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise WorkflowError(
+                        f"Workspace registry is locked by another process after {timeout:g}s; retry later"
+                    )
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def workspace_context():
+    cwd = Path.cwd()
+    common = Path(git("rev-parse", "--path-format=absolute", "--git-common-dir", cwd=cwd)).resolve()
+    listing = git("worktree", "list", "--porcelain", cwd=cwd)
+    main_root = Path(listing.splitlines()[0].split(" ", 1)[1]).resolve()
+    current = Path(git("rev-parse", "--show-toplevel", cwd=cwd)).resolve()
+    return main_root, common, common / "agent-workflow" / "issues", current
+
+
+def registry_entries(registry):
+    if not registry.is_dir():
+        return []
+    entries = []
+    for path in sorted(registry.glob("*.json"), key=lambda item: int(item.stem)):
+        try:
+            entries.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            raise WorkflowError(f"Unreadable workspace registry entry: {path}: {exc}")
+    return entries
+
+
+def registry_read(registry, issue):
+    path = registry / f"{issue}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise WorkflowError(f"Unreadable workspace registry entry: {path}: {exc}")
+
+
+def worktree_branches(main_root):
+    branches, path = {}, None
+    for line in git("worktree", "list", "--porcelain", cwd=main_root).splitlines():
+        if line.startswith("worktree "):
+            path = str(Path(line.split(" ", 1)[1]).resolve())
+            branches[path] = None
+        elif line.startswith("branch ") and path:
+            branches[path] = line.split(" ", 1)[1].removeprefix("refs/heads/")
+    return branches
+
+
+def branch_exists(root, branch):
+    return subprocess.run(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+                          cwd=root).returncode == 0
+
+
+def default_base(main_root):
+    remote_head = git("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
+                      cwd=main_root, check=False)
+    if remote_head:
+        return remote_head.split("/", 1)[1]
+    if branch_exists(main_root, "main"):
+        return "main"
+    raise WorkflowError("Cannot determine the base branch; pass --base")
+
+
+def ensure_excluded(common):
+    exclude = common / "info" / "exclude"
+    lines = exclude.read_text(encoding="utf-8").splitlines() if exclude.exists() else []
+    if ".worktrees/" not in lines:
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        with open(exclude, "a", encoding="utf-8") as stream:
+            if lines and lines[-1] != "":
+                stream.write("\n")
+            stream.write(".worktrees/\n")
+
+
+def infer_issue(registry, current):
+    entries = registry_entries(registry)
+    for entry in entries:
+        if Path(entry["worktree"]).resolve() == current:
+            return entry["issue"]
+    active = ", ".join(f"#{entry['issue']} ({entry['worktree']})" for entry in entries) or "none"
+    raise WorkflowError(f"Current checkout is not a registered issue workspace; pass --issue. Active: {active}")
+
+
+def workspace_get(args, main_root, common, registry, current):
+    issue = args.issue if args.issue is not None else infer_issue(registry, current)
+    with registry_lock(registry, args.lock_timeout):
+        entry = registry_read(registry, issue)
+        if entry is not None:
+            path = str(Path(entry["worktree"]).resolve())
+            if worktree_branches(main_root).get(path) != entry["branch"]:
+                raise WorkflowError(
+                    f"Registered worktree for #{issue} is missing or not on {entry['branch']}; reconcile manually"
+                )
+            return entry
+        base = args.base or default_base(main_root)
+        branch = args.branch or f"fix/issue-{issue}"
+        path = main_root / ".worktrees" / f"issue-{issue}"
+        if path.exists():
+            raise WorkflowError(f"Unregistered path already exists: {path}")
+        if branch_exists(main_root, branch):
+            raise WorkflowError(f"Unregistered branch already exists: {branch}; verify ownership manually")
+        start = base
+        if git("remote", cwd=main_root).split().count("origin"):
+            git("fetch", "origin", base, cwd=main_root)
+            start = f"origin/{base}"
+        ensure_excluded(common)
+        git("worktree", "add", "--no-track", "-b", branch, str(path), start, cwd=main_root)
+        entry = {
+            "issue": issue,
+            "worktree": str(path.resolve()),
+            "branch": branch,
+            "base": base,
+            "plan": str(path.resolve() / "docs" / "tasks" / f"issue-{issue}.md"),
+            "stages": [],
+            "created_at": now(),
+        }
+        atomic_json(registry / f"{issue}.json", entry)
+        return entry
+
+
+def workspace_list(registry):
+    result = []
+    for entry in registry_entries(registry):
+        path = Path(entry["worktree"])
+        exists = path.is_dir()
+        dirty = None
+        if exists:
+            dirty = bool(git("status", "--porcelain", "--untracked-files=normal", cwd=path))
+        result.append({**entry, "exists": exists, "dirty": dirty})
+    return {"workspaces": result}
+
+
+def workspace_remove(args, main_root, registry):
+    with registry_lock(registry, args.lock_timeout):
+        entry = registry_read(registry, args.issue)
+        if entry is None:
+            raise WorkflowError(f"Issue #{args.issue} has no registered workspace; nothing removed")
+        if entry.get("lease"):
+            raise WorkflowError(f"Issue #{args.issue} is claimed by {entry['lease']['owner']}; release it first")
+        path = Path(entry["worktree"])
+        archived = None
+        if path.is_dir():
+            if git("status", "--porcelain", "--untracked-files=normal", cwd=path):
+                raise WorkflowError(f"Workspace {path} has uncommitted changes; preserve them before removal")
+            ledger = Path(git("rev-parse", "--path-format=absolute", "--git-path",
+                              "agent-workflow/progress.json", cwd=path))
+            if ledger.exists():
+                archived = registry.parent / "history" / f"issue-{args.issue}" / "progress.json"
+                atomic_json(archived, json.loads(ledger.read_text(encoding="utf-8")))
+            git("worktree", "remove", str(path), cwd=main_root)
+        else:
+            git("worktree", "prune", cwd=main_root)
+        (registry / f"{args.issue}.json").unlink()
+        return {"removed": True, "issue": args.issue, "worktree": str(path), "branch": entry["branch"],
+                "archived_ledger": str(archived) if archived else None}
+
+
+def workspace_lease(args, registry):
+    with registry_lock(registry, args.lock_timeout):
+        entry = registry_read(registry, args.issue)
+        if entry is None:
+            raise WorkflowError(f"Issue #{args.issue} has no registered workspace; run `workspace get` first")
+        lease = entry.get("lease")
+        if args.workspace_command == "claim":
+            if lease and lease["owner"] != args.owner:
+                raise WorkflowError(
+                    f"Issue #{args.issue} is claimed by {lease['owner']} since {lease['claimed_at']}; "
+                    "inspect its worktree and release it explicitly if that session has stopped"
+                )
+            entry["lease"] = {"owner": args.owner, "claimed_at": lease["claimed_at"] if lease else now()}
+        else:
+            if lease and lease["owner"] != args.owner and not args.force:
+                raise WorkflowError(f"Issue #{args.issue} is claimed by {lease['owner']}; use --force only after "
+                                    "confirming that session has stopped")
+            entry["lease"] = None
+        atomic_json(registry / f"{args.issue}.json", entry)
+        return entry
+
+
+def workspace_act(args):
+    main_root, common, registry, current = workspace_context()
+    if args.workspace_command == "get":
+        return workspace_get(args, main_root, common, registry, current)
+    if args.workspace_command == "list":
+        return workspace_list(registry)
+    if args.workspace_command in ("claim", "release"):
+        return workspace_lease(args, registry)
+    return workspace_remove(args, main_root, registry)
+
+
+def touch_overlaps(left, right):
+    """Approximate glob intersection; reports a false overlap rather than miss a real one."""
+    def normalize(pattern):
+        pattern = pattern.removeprefix("shared:").strip()
+        return pattern + "**" if pattern.endswith("/") else pattern
+
+    def static(pattern):
+        match = re.search(r"[*?\[]", pattern)
+        return pattern[:match.start()] if match else pattern
+
+    left, right = normalize(left), normalize(right)
+    left_wild, right_wild = static(left) != left, static(right) != right
+    if not left_wild and not right_wild:
+        return left == right
+    if left_wild and not right_wild:
+        return fnmatch.fnmatchcase(right, left) or right.startswith(static(left))
+    if right_wild and not left_wild:
+        return fnmatch.fnmatchcase(left, right) or left.startswith(static(right))
+    return static(left).startswith(static(right)) or static(right).startswith(static(left))
+
+
+def overlap(paths):
+    plans, unknown = [], []
+    for path in paths:
+        plan = plan_load(path)
+        missing = [task["id"] for task in plan["tasks"] if task["touches"] is None]
+        if missing:
+            unknown.append({"plan": plan["path"], "tasks": missing})
+        plans.append((plan["path"], sorted({item for task in plan["tasks"] for item in task["touches"] or []})))
+    conflicts = []
+    for index, (left_path, left_touches) in enumerate(plans):
+        for right_path, right_touches in plans[index + 1:]:
+            pairs = [
+                [left, right] for left in left_touches for right in right_touches
+                if left.startswith("shared:") or right.startswith("shared:") or touch_overlaps(left, right)
+            ]
+            if pairs:
+                conflicts.append({"plans": [left_path, right_path], "paths": pairs})
+    return {
+        "verdict": "sequential" if conflicts or unknown else "parallel",
+        "conflicts": conflicts,
+        "unknown": unknown,
+    }
+
+
 def act(args):
     if args.command == "source-digest":
         return canonical_issue_digest(args.input)
+    if args.command == "workspace":
+        return workspace_act(args)
+    if args.command == "overlap":
+        return overlap(args.plans)
 
     plan = plan_load(args.plan, require_approval=args.command != "validate")
     if args.command == "validate":
@@ -494,6 +759,25 @@ def cli():
     subparsers = parser.add_subparsers(dest="command", required=True)
     digest_parser = subparsers.add_parser("source-digest")
     digest_parser.add_argument("--input", required=True, help="gh issue view JSON path, or - for stdin")
+    overlap_parser = subparsers.add_parser("overlap")
+    overlap_parser.add_argument("--plans", nargs="+", required=True)
+    workspace_parser = subparsers.add_parser("workspace")
+    workspace_commands = workspace_parser.add_subparsers(dest="workspace_command", required=True)
+    get_parser = workspace_commands.add_parser("get")
+    get_parser.add_argument("--issue", type=int)
+    get_parser.add_argument("--base")
+    get_parser.add_argument("--branch")
+    workspace_commands.add_parser("list")
+    remove_parser = workspace_commands.add_parser("remove")
+    remove_parser.add_argument("--issue", type=int, required=True)
+    for name in ("claim", "release"):
+        lease_parser = workspace_commands.add_parser(name)
+        lease_parser.add_argument("--issue", type=int, required=True)
+        lease_parser.add_argument("--owner", required=True)
+        if name == "release":
+            lease_parser.add_argument("--force", action="store_true")
+    for command_parser in workspace_commands.choices.values():
+        command_parser.add_argument("--lock-timeout", type=float, default=30.0)
     for name in (
         "validate", "init", "status", "next", "start", "complete", "block", "resume",
         "sync-plan", "verify-plan", "pr-evidence",
