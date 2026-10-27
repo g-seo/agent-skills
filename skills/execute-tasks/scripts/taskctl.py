@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Local single-agent task progress ledger.
+"""Local task progress ledger and per-issue workspace registry.
 
-The helper records workflow state and evidence. It does not execute tests, create
-commits or branches, or perform remote writes. Stdlib only, Python 3.10+.
+The helper records workflow state and evidence, and `workspace` creates one Git
+worktree and branch per issue. It does not execute tests, create commits, or
+perform remote writes other than fetching the base branch. Stdlib only, Python 3.10+.
 """
 import argparse
+from contextlib import contextmanager
 from datetime import datetime, timezone
+import fcntl
 import hashlib
 import json
 import os
@@ -331,9 +334,173 @@ def initialize(args, plan, root, state_path, branch, head, state):
             "baseline_sha": head, "plan_storage": storage, "state_path": str(state_path)}
 
 
+@contextmanager
+def registry_lock(registry):
+    registry.mkdir(parents=True, exist_ok=True)
+    with open(registry / ".lock", "a", encoding="utf-8") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def workspace_context():
+    cwd = Path.cwd()
+    common = Path(git("rev-parse", "--path-format=absolute", "--git-common-dir", cwd=cwd)).resolve()
+    listing = git("worktree", "list", "--porcelain", cwd=cwd)
+    main_root = Path(listing.splitlines()[0].split(" ", 1)[1]).resolve()
+    current = Path(git("rev-parse", "--show-toplevel", cwd=cwd)).resolve()
+    return main_root, common, common / "agent-workflow" / "issues", current
+
+
+def registry_entries(registry):
+    if not registry.is_dir():
+        return []
+    entries = []
+    for path in sorted(registry.glob("*.json"), key=lambda item: int(item.stem)):
+        try:
+            entries.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            raise WorkflowError(f"Unreadable workspace registry entry: {path}: {exc}")
+    return entries
+
+
+def registry_read(registry, issue):
+    path = registry / f"{issue}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise WorkflowError(f"Unreadable workspace registry entry: {path}: {exc}")
+
+
+def worktree_branches(main_root):
+    branches, path = {}, None
+    for line in git("worktree", "list", "--porcelain", cwd=main_root).splitlines():
+        if line.startswith("worktree "):
+            path = str(Path(line.split(" ", 1)[1]).resolve())
+            branches[path] = None
+        elif line.startswith("branch ") and path:
+            branches[path] = line.split(" ", 1)[1].removeprefix("refs/heads/")
+    return branches
+
+
+def branch_exists(root, branch):
+    return subprocess.run(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+                          cwd=root).returncode == 0
+
+
+def default_base(main_root):
+    remote_head = git("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
+                      cwd=main_root, check=False)
+    if remote_head:
+        return remote_head.split("/", 1)[1]
+    if branch_exists(main_root, "main"):
+        return "main"
+    raise WorkflowError("Cannot determine the base branch; pass --base")
+
+
+def ensure_excluded(common):
+    exclude = common / "info" / "exclude"
+    lines = exclude.read_text(encoding="utf-8").splitlines() if exclude.exists() else []
+    if ".worktrees/" not in lines:
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        with open(exclude, "a", encoding="utf-8") as stream:
+            if lines and lines[-1] != "":
+                stream.write("\n")
+            stream.write(".worktrees/\n")
+
+
+def infer_issue(registry, current):
+    entries = registry_entries(registry)
+    for entry in entries:
+        if Path(entry["worktree"]).resolve() == current:
+            return entry["issue"]
+    active = ", ".join(f"#{entry['issue']} ({entry['worktree']})" for entry in entries) or "none"
+    raise WorkflowError(f"Current checkout is not a registered issue workspace; pass --issue. Active: {active}")
+
+
+def workspace_get(args, main_root, common, registry, current):
+    issue = args.issue if args.issue is not None else infer_issue(registry, current)
+    with registry_lock(registry):
+        entry = registry_read(registry, issue)
+        if entry is not None:
+            path = str(Path(entry["worktree"]).resolve())
+            if worktree_branches(main_root).get(path) != entry["branch"]:
+                raise WorkflowError(
+                    f"Registered worktree for #{issue} is missing or not on {entry['branch']}; reconcile manually"
+                )
+            return entry
+        base = args.base or default_base(main_root)
+        branch = args.branch or f"fix/issue-{issue}"
+        path = main_root / ".worktrees" / f"issue-{issue}"
+        if path.exists():
+            raise WorkflowError(f"Unregistered path already exists: {path}")
+        if branch_exists(main_root, branch):
+            raise WorkflowError(f"Unregistered branch already exists: {branch}; verify ownership manually")
+        start = base
+        if git("remote", cwd=main_root).split().count("origin"):
+            git("fetch", "origin", base, cwd=main_root)
+            start = f"origin/{base}"
+        ensure_excluded(common)
+        git("worktree", "add", "--no-track", "-b", branch, str(path), start, cwd=main_root)
+        entry = {
+            "issue": issue,
+            "worktree": str(path.resolve()),
+            "branch": branch,
+            "base": base,
+            "plan": str(path.resolve() / "docs" / "tasks" / f"issue-{issue}.md"),
+            "stages": [],
+            "created_at": now(),
+        }
+        atomic_json(registry / f"{issue}.json", entry)
+        return entry
+
+
+def workspace_list(registry):
+    result = []
+    for entry in registry_entries(registry):
+        path = Path(entry["worktree"])
+        exists = path.is_dir()
+        dirty = None
+        if exists:
+            dirty = bool(git("status", "--porcelain", "--untracked-files=normal", cwd=path))
+        result.append({**entry, "exists": exists, "dirty": dirty})
+    return {"workspaces": result}
+
+
+def workspace_remove(args, main_root, registry):
+    with registry_lock(registry):
+        entry = registry_read(registry, args.issue)
+        if entry is None:
+            raise WorkflowError(f"Issue #{args.issue} has no registered workspace; nothing removed")
+        path = Path(entry["worktree"])
+        if path.is_dir():
+            if git("status", "--porcelain", "--untracked-files=normal", cwd=path):
+                raise WorkflowError(f"Workspace {path} has uncommitted changes; preserve them before removal")
+            git("worktree", "remove", str(path), cwd=main_root)
+        else:
+            git("worktree", "prune", cwd=main_root)
+        (registry / f"{args.issue}.json").unlink()
+        return {"removed": True, "issue": args.issue, "worktree": str(path), "branch": entry["branch"]}
+
+
+def workspace_act(args):
+    main_root, common, registry, current = workspace_context()
+    if args.workspace_command == "get":
+        return workspace_get(args, main_root, common, registry, current)
+    if args.workspace_command == "list":
+        return workspace_list(registry)
+    return workspace_remove(args, main_root, registry)
+
+
 def act(args):
     if args.command == "source-digest":
         return canonical_issue_digest(args.input)
+    if args.command == "workspace":
+        return workspace_act(args)
 
     plan = plan_load(args.plan, require_approval=args.command != "validate")
     if args.command == "validate":
@@ -494,6 +661,15 @@ def cli():
     subparsers = parser.add_subparsers(dest="command", required=True)
     digest_parser = subparsers.add_parser("source-digest")
     digest_parser.add_argument("--input", required=True, help="gh issue view JSON path, or - for stdin")
+    workspace_parser = subparsers.add_parser("workspace")
+    workspace_commands = workspace_parser.add_subparsers(dest="workspace_command", required=True)
+    get_parser = workspace_commands.add_parser("get")
+    get_parser.add_argument("--issue", type=int)
+    get_parser.add_argument("--base")
+    get_parser.add_argument("--branch")
+    workspace_commands.add_parser("list")
+    remove_parser = workspace_commands.add_parser("remove")
+    remove_parser.add_argument("--issue", type=int, required=True)
     for name in (
         "validate", "init", "status", "next", "start", "complete", "block", "resume",
         "sync-plan", "verify-plan", "pr-evidence",
