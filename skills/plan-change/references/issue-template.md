@@ -54,7 +54,8 @@ Describe the agreed implementation approach, affected interfaces or components, 
 - Observability or operational impact:
 
 ## Dependencies
-- Prerequisite or sibling issues:
+- Depends on: <#N, #M for issues that must be merged first, or none>
+- Related (no ordering):
 - Follow-up work:
 ```
 
@@ -68,5 +69,5 @@ Before presenting the issue for approval, verify that:
 - Acceptance criteria describe observable outcomes, including relevant error and edge-case behavior.
 - Verification covers the change and the preserved behavior most at risk of regression.
 - Documentation, migration, rollout, rollback, and operational effects are addressed or marked `None`.
-- Dependencies and ordering are explicit when the plan contains more than one issue.
+- The `- Depends on:` line lists only hard prerequisites as `#N` references (or `none`), so `$order-issues` can parse it.
 - Labels, assignees, milestones, projects, and other metadata are not added unless the user requested them or the repository requires them.

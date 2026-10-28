@@ -1,7 +1,0 @@
-interface:
-  display_name: "Work Issues"
-  short_description: "Run several GitHub issues one at a time or in parallel"
-  default_prompt: "Use $work-issues to plan, approve, and execute these issues: "
-
-policy:
-  allow_implicit_invocation: false

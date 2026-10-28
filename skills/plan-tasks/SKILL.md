@@ -30,4 +30,4 @@ description: Turn one approved source—including exactly one GitHub issue for a
 - If execution has already started, an approved revision must first be committed on the recorded execution branch and then synchronized with `taskctl sync-plan --approved`.
 
 ## Boundaries
-Never implement source code, create or edit issues/PRs, commit, push or spawn agents. `$execute-tasks` is an independent user-authorized invocation. Accept exactly one maintenance issue per invocation, and do not force subtasks for a one-line fix.
+Never implement source code, create or edit issues/PRs, commit, push or spawn agents. `$execute-tasks` is an independent user-authorized invocation or the next `$work-issue` stage. Accept exactly one maintenance issue per invocation, and do not force subtasks for a one-line fix.
