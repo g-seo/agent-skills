@@ -603,14 +603,13 @@ SKILLS_ROOT = Path(__file__).resolve().parents[2]
 BUILTIN_STAGES = {"builtin:precheck"}
 STAGE_ACCESS = {"read", "local-write", "remote"}
 STAGE_GATES = {"none", "approval"}
-STAGE_FLAGS = ("modifies-code", "verifies", "optional", "parallel")
+STAGE_FLAGS = ("modifies-code", "verifies", "optional")
 DEFAULT_PIPELINE = {
-    "concurrency": 2,
     "stages": [
         {"id": "precheck", "skill": "builtin:precheck", "access": "read"},
         {"id": "plan", "skill": "plan-tasks", "gate": "approval", "access": "local-write"},
         {"id": "execute", "skill": "execute-tasks", "access": "local-write",
-         "modifies-code": True, "verifies": True, "parallel": True},
+         "modifies-code": True, "verifies": True},
         {"id": "explain", "skill": "explain-diff", "gate": "approval", "access": "remote", "optional": True},
         {"id": "pr", "skill": "create-pr", "gate": "approval", "access": "remote"},
     ],
@@ -659,12 +658,6 @@ def validate_stages(stages):
         if stage["access"] == "remote" and unverified:
             raise WorkflowError(f"Stage {unverified} modifies code but is not verified before remote stage {ident}")
     return stages
-
-
-def resolve_concurrency(value, source):
-    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise WorkflowError(f"Concurrency from {source} must be a positive integer: {value!r}")
-    return value
 
 
 def load_pipeline(path=None):
@@ -758,21 +751,15 @@ def workspace_state(args, registry):
 def pipeline_act(args):
     pipeline, source = load_pipeline(args.file)
     stages = validate_stages(pipeline.get("stages"))
-    if args.concurrency is not None:
-        concurrency = resolve_concurrency(args.concurrency, "--concurrency")
-    elif "concurrency" in pipeline:
-        concurrency = resolve_concurrency(pipeline["concurrency"], source)
-    else:
-        concurrency = DEFAULT_PIPELINE["concurrency"]
     if args.pipeline_command == "validate":
-        return {"valid": True, "source": source, "stage_count": len(stages), "concurrency": concurrency}
+        return {"valid": True, "source": source, "stage_count": len(stages)}
     if args.issue is None:
-        return {"source": source, "concurrency": concurrency, "stages": stages}
+        return {"source": source, "stages": stages}
     entry = registry_read(workspace_context()[2], args.issue)
     if entry is None:
         raise WorkflowError(f"Issue #{args.issue} has no registered workspace; run `workspace get` first")
     stages = issue_stages(stages, entry)
-    return {"source": source, "concurrency": concurrency, "issue": args.issue, "stages": stages,
+    return {"source": source, "issue": args.issue, "stages": stages,
             **issue_progress(stages, entry)}
 
 
@@ -950,7 +937,6 @@ def cli():
     for name in ("show", "validate"):
         command_parser = pipeline_commands.add_parser(name)
         command_parser.add_argument("--file")
-        command_parser.add_argument("--concurrency", type=int)
         if name == "show":
             command_parser.add_argument("--issue", type=int)
     overlap_parser = subparsers.add_parser("overlap")

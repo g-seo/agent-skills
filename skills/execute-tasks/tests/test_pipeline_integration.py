@@ -6,7 +6,7 @@ import unittest
 from test_taskctl import SCRIPT, cmd
 
 
-class CoordinatorFlowTests(unittest.TestCase):
+class SessionFlowTests(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
@@ -24,39 +24,33 @@ class CoordinatorFlowTests(unittest.TestCase):
         cmd("git", "push", "-u", "origin", "main", cwd=self.root)
         cmd("git", "remote", "set-head", "origin", "main", cwd=self.root)
 
-    def taskctl(self, *args):
-        return json.loads(cmd("python3", str(SCRIPT), *args, cwd=self.root).stdout)
+    def taskctl(self, *args, ok=True):
+        result = cmd("python3", str(SCRIPT), *args, cwd=self.root, ok=ok)
+        return json.loads(result.stdout if result.returncode == 0 else result.stderr)
 
     def complete(self, issue, *stages):
         for stage in stages:
             self.taskctl("workspace", "stage", "--issue", str(issue), "--complete", stage)
 
-    def slots(self, concurrency, issues):
-        running = [issue for issue in issues if self.state(issue) == "running"]
-        ready = [issue for issue in issues if self.state(issue) in ("pending", "interrupted")
-                 and self.taskctl("pipeline", "show", "--issue", str(issue))["next_stage"] == "execute"]
-        return ready[:max(concurrency - len(running), 0)]
+    def claim(self, issue, owner, ok=True):
+        return self.taskctl("workspace", "claim", "--issue", str(issue), "--owner", owner, ok=ok)
 
-    def state(self, issue):
-        return self.taskctl("pipeline", "show", "--issue", str(issue))["state"]["value"]
-
-    def test_two_issues_through_the_pipeline(self):
-        issues = (21, 22)
-        for issue in issues:
+    def test_two_sessions_each_drive_one_issue(self):
+        sessions = {21: "claude:host:1", 22: "codex:host:2"}
+        for issue, owner in sessions.items():
             self.taskctl("workspace", "get", "--issue", str(issue))
+            self.claim(issue, owner)
             self.complete(issue, "precheck", "plan")
-
-        self.assertEqual(self.taskctl("pipeline", "show", "--concurrency", "1")["concurrency"], 1)
-        self.assertEqual(self.slots(1, issues), [21])
-        concurrency = self.taskctl("pipeline", "show")["concurrency"]
-        self.assertEqual(self.slots(concurrency, issues), [21, 22])
-
-        for issue in issues:
             self.taskctl("workspace", "state", "--issue", str(issue), "--set", "running")
-        self.taskctl("workspace", "state", "--issue", "22", "--set", "interrupted", "--reason", "no receipt")
+        self.assertIn("claimed by codex:host:2", self.claim(22, "claude:host:1", ok=False)["error"])
+
         self.complete(21, "execute")
         self.taskctl("workspace", "state", "--issue", "21", "--set", "done")
-        self.assertEqual(self.slots(concurrency, issues), [22])
+        self.taskctl("workspace", "release", "--issue", "21", "--owner", sessions[21])
+        self.taskctl("workspace", "state", "--issue", "22", "--set", "interrupted", "--reason", "usage limit")
+        self.taskctl("workspace", "release", "--issue", "22", "--owner", "claude:host:3", "--force")
+        self.claim(22, "claude:host:3")
+        self.assertEqual(self.taskctl("pipeline", "show", "--issue", "22")["next_stage"], "execute")
 
         self.taskctl("workspace", "stage", "--issue", "22", "--insert", "write-ste", "--after", "execute",
                      "--id", "polish")
@@ -80,7 +74,8 @@ class CoordinatorFlowTests(unittest.TestCase):
 
         listed = {item["issue"]: item for item in self.taskctl("workspace", "list")["workspaces"]}
         self.assertEqual(listed[21]["state"]["value"], "done")
-        self.assertEqual(listed[22]["state"]["reason"], "no receipt")
+        self.assertEqual(listed[22]["state"]["reason"], "usage limit")
+        self.assertEqual(listed[22]["lease"]["owner"], "claude:host:3")
         self.assertEqual(cmd("git", "status", "--porcelain", cwd=self.root).stdout, "?? .agent-workflow/\n")
 
 

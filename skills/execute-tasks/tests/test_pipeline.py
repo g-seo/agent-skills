@@ -33,19 +33,17 @@ class PipelineTests(unittest.TestCase):
                    "modifies-code": True, "verifies": True}] if base else []
         return stages + list(extra)
 
-    def test_default_pipeline_and_concurrency(self):
+    def test_default_pipeline(self):
         shown = self.taskctl("pipeline", "show")
         self.assertEqual(shown["source"], "default")
-        self.assertEqual(shown["concurrency"], 2)
         self.assertEqual([stage["id"] for stage in shown["stages"]], ["precheck", "plan", "execute", "explain", "pr"])
-        self.assertEqual(self.taskctl("pipeline", "show", "--concurrency", "1")["concurrency"], 1)
         self.assertTrue(self.taskctl("pipeline", "validate")["valid"])
 
-    def test_file_overrides_default_and_flag_overrides_file(self):
-        path = self.write_pipeline({"concurrency": 3, "stages": self.stages()})
+    def test_file_overrides_default(self):
+        path = self.write_pipeline({"stages": self.stages()})
         shown = self.taskctl("pipeline", "show")
-        self.assertEqual((shown["source"], shown["concurrency"]), (str(path.resolve()), 3))
-        self.assertEqual(self.taskctl("pipeline", "show", "--concurrency", "1")["concurrency"], 1)
+        self.assertEqual((shown["source"], [stage["id"] for stage in shown["stages"]]),
+                         (str(path.resolve()), ["execute"]))
 
     def assert_invalid(self, pipeline, message):
         self.write_pipeline(pipeline)
@@ -66,9 +64,6 @@ class PipelineTests(unittest.TestCase):
             "fix modifies code but is not verified before remote stage pr")
         self.assert_invalid({"stages": self.stages({"id": "execute", "skill": "write-ste", "access": "read"})},
                             "Duplicate stage id")
-        self.assert_invalid({"concurrency": 0, "stages": self.stages()}, "positive integer")
-        error = self.taskctl("pipeline", "show", "--concurrency", "0", ok=False)
-        self.assertIn("positive integer", error["error"])
 
     def test_verifying_stage_clears_unverified_change(self):
         self.write_pipeline({"stages": self.stages(
