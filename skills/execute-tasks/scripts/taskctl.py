@@ -42,7 +42,9 @@ def now():
 
 
 def git(*args, cwd=None, check=True):
-    result = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True)
+    # Read-only inspection of another session's worktree must not take index.lock and break its commits.
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
+    result = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, env=env)
     if check and result.returncode:
         detail = result.stderr.strip() or result.stdout.strip()
         raise WorkflowError(f"git {' '.join(args)} failed: {detail}")
