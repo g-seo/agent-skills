@@ -22,10 +22,11 @@
 - `CLAUDE.md` imports this file; edit rules here only.
 
 ## Single and Parallel Execution
-- Keep every workflow usable by one agent and by several concurrent agents. One issue = one worktree = one unit skill run; parallelism is only the number of concurrent runs.
+- One issue = one worktree = one session in one terminal. Parallelism means more terminals (Codex CLI, Claude Code, or both), each running a different issue; skills never spawn subagents or worker processes for other issues.
+- Keep each skill light: `$order-issues` only reports dependency order, `$work-issue` only chains the unit skills for one issue, and unit skills stay usable on their own.
 - Issue-scoped skills resolve their location with `taskctl.py workspace get` instead of the current checkout or branch.
 - Run Git with the target worktree as the working directory and no options before the subcommand (no `git -C`). Call `taskctl.py` by its resolved real path. Codex allowlist rules in `templates/codex/agent-workflow.rules` match exact command prefixes.
-- Issue-scoped skills follow the stage contract in `skills/work-issues/references/stage-contract.md`: they accept a delegated non-interactive run and end with a stage receipt. Check new or changed pipeline stages with `taskctl.py pipeline validate`.
+- Issue-scoped skills follow the stage contract in `skills/work-issue/references/stage-contract.md`: they work in the issue worktree and end with a stage result (`done`, `blocked` or `needs-approval`). Check new or changed pipeline stages with `taskctl.py pipeline validate`.
 
 ## Git & Security
 - Update `README.md` when adding, removing, or renaming skills.

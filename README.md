@@ -1,6 +1,6 @@
 # agent-skills
 
-신규 프로젝트 설계, 기존 프로젝트 유지보수, 오픈소스 기여를 위한 에이전트 스킬 모음이다. 에이전트 하나로 순차 처리할 수도 있고, 독립적인 Issue를 여러 세션에서 병렬로 처리할 수도 있다. 같은 `skills/` 원본을 Codex CLI와 Claude Code에서 동일한 워크플로우로 사용한다.
+신규 프로젝트 설계, 기존 프로젝트 유지보수, 오픈소스 기여를 위한 에이전트 스킬 모음이다. 세션 하나가 Issue 하나를 처리하고, 독립적인 Issue는 터미널을 여러 개 열어 병렬로 처리한다. `$order-issues`가 의존성에 따른 작업 순서를 알려 준다. 같은 `skills/` 원본을 Codex CLI와 Claude Code에서 동일한 워크플로우로 사용한다.
 
 ## 설치
 
@@ -26,8 +26,8 @@ done
 
 ### 요구 사항
 
-- Git, Python 3.10 이상(`execute-tasks/scripts/taskctl.py`, 표준 라이브러리만 사용)
-- GitHub CLI(`gh auth login`): `$plan-change`, `$plan-tasks`, `$create-pr`, `$cleanup-branch`, `$repair-pr`, `$contribute`
+- Git, Python 3.10 이상(`execute-tasks/scripts/taskctl.py`, `order-issues/scripts/issue_order.py`, 표준 라이브러리만 사용)
+- GitHub CLI(`gh auth login`): `$plan-change`, `$order-issues`, `$work-issue`, `$plan-tasks`, `$create-pr`, `$cleanup-branch`, `$repair-pr`, `$contribute`
 - Notion MCP: `$explain-diff`. 두 CLI에 각각 등록하고 인증한다.
 
 ```bash
@@ -38,7 +38,7 @@ claude mcp add --transport http --scope user notion https://mcp.notion.com/mcp  
 ### 호출 규칙
 
 - 아래 예시는 Codex 표기(`$skill-name`)를 사용한다. Claude Code에서는 `$`를 `/`로 바꿔 `/plan-tasks docs/TASKS.md ...`처럼 호출한다. 스킬 본문의 `$skill-name`도 같은 스킬을 가리킨다.
-- `$explain-diff`는 명시적으로만 호출된다. Codex는 `agents/openai.yaml`의 `allow_implicit_invocation: false`, Claude Code는 `SKILL.md`의 `disable-model-invocation: true`로 같은 정책을 적용한다.
+- `$explain-diff`와 `$work-issue`는 명시적으로만 호출된다. Codex는 `agents/openai.yaml`의 `allow_implicit_invocation: false`, Claude Code는 `SKILL.md`의 `disable-model-invocation: true`로 같은 정책을 적용한다.
 - `$execute-tasks`의 진행 기록은 worktree마다 `git rev-parse --git-path agent-workflow/progress.json` 위치에 저장된다. 같은 worktree에서는 Codex와 Claude Code가 같은 기록을 이어서 사용할 수 있다. 같은 Issue를 두 세션에서 동시에 실행하지 않는다.
 
 ### Codex 설정
@@ -69,7 +69,8 @@ sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/ru
 | `$create-pr` | 검증된 브랜치를 Push하고 GitHub PR을 생성한다. | 원격 브랜치와 PR |
 | `$cleanup-branch` | 저장소에 남은 로컬·원격 작업 브랜치를 검사하고 PR 병합이 확인된 브랜치를 정리한다. | base 브랜치 최신화, 정리·보존 결과 |
 | `$repair-pr` | 기존 PR의 리뷰 지적, conflict 또는 CI 실패를 수정한다. | 기존 PR 브랜치의 수정과 Push |
-| `$work-issues` | 여러 Issue를 단계 pipeline에 따라 순차 또는 병렬로 처리하고, 계획과 PR 승인을 한 번씩 묶어 받는다. | Issue별 worktree, 승인된 계획, Commit, PR |
+| `$order-issues` | 열린 Issue의 의존성을 분석해 지금 시작할 Issue, Track별 순서, 단일 터미널 순서를 알려 준다. 작업은 수행하지 않는다. | 작업 순서 보고 |
+| `$work-issue` | Issue 하나를 현재 세션에서 계획, 구현, PR까지 단계 pipeline에 따라 진행한다. | Issue worktree, 승인된 계획, Commit, PR |
 | `$write-ste` | 기술 문서와 Issue, PR 문구를 의미 변경 없이 명확하게 다듬는다. | 수정된 기술 텍스트 |
 
 ## 사용 방법
@@ -104,7 +105,43 @@ $plan-change 만료된 액세스 토큰 요청이 500을 반환한다. 실제 �
 
 `$plan-change`는 Issue 제목과 본문을 먼저 제시한다. 사용자가 최종 Issue 생성을 승인한 뒤에만 `gh issue create`를 실행한다. 변경 범위가 독립적인 여러 작업으로 나뉘면 Issue를 두 개 이상 만들 수 있다.
 
-생성된 Issue는 한 번에 하나씩 `$plan-tasks`에 전달한다.
+Issue 사이의 선행 관계는 Issue 본문의 `- Depends on: #N` 줄로 선언한다. `$plan-change`가 여러 Issue를 만들 때 이 줄을 채운다.
+
+#### 작업 순서 확인: `$order-issues`
+
+`$order-issues`는 열린 Issue를 모두 읽고 의존성에 따른 작업 순서만 알려 준다. 계획, 구현, Issue 수정은 하지 않는다.
+
+```text
+$order-issues
+```
+
+예를 들어 #2는 #3에, #1은 #4에 의존하면 다음과 같이 보고한다.
+
+```text
+Track 1: #3 -> #2
+Track 2: #4 -> #1
+Start now (one terminal each): #3, #4
+Single-terminal order: #3 -> #2 -> #4 -> #1
+```
+
+- Track 하나는 터미널 하나가 차례로 처리할 수 있는 순서다. 서로 다른 Track은 독립적이다.
+- `Start now`의 Issue는 지금 바로 각자의 터미널에서 시작할 수 있다. #4가 #2에도 의존하면 Track이 `#3 -> #2 -> #4 -> #1` 하나로 합쳐지고 `Start now`는 #3만 남는다.
+- 선언이 없는 Issue는 본문을 읽어 의존성이나 충돌(같은 파일 변경, 순서는 무관)을 추론하고, 추론한 근거를 따로 보고한다. 진행 중인 Issue(lease가 있거나 열린 PR이 있는 Issue)는 병합될 때까지 후행 Issue를 막는다.
+- PR이 병합되거나 새 Issue가 생기면 다시 실행해 다음에 시작할 Issue를 확인한다.
+- 순서 계산은 `skills/order-issues/scripts/issue_order.py`가 결정적으로 수행한다.
+
+#### Issue 하나 처리: `$work-issue`
+
+세션 하나는 Issue 하나만 처리한다. `$work-issue <N>`은 현재 세션에서 단계 pipeline(`precheck → plan → execute → explain(선택) → pr`)을 차례로 진행하고, 각 단계는 단위 스킬(`$plan-tasks`, `$execute-tasks`, `$create-pr`)을 그대로 호출한다.
+
+```text
+$work-issue 123
+```
+
+- 계획 승인과 PR 게시 승인은 같은 세션에서 사용자에게 묻는다. 사용자는 언제든 끼어들어 방향을 바꿀 수 있다.
+- 다시 호출하면 registry에 기록된 단계부터 이어서 진행한다.
+- 선행 Issue가 아직 열려 있으면 진행 여부를 먼저 묻는다.
+- 단위 스킬을 직접 호출하는 방식도 그대로 쓸 수 있다.
 
 ```text
 $plan-tasks https://github.com/OWNER/REPOSITORY/issues/123 한 개만 범위로 사용해 Task를 작성해.
@@ -117,18 +154,19 @@ $execute-tasks docs/tasks/issue-123.md의 승인된 작업을 순차 실행해.
 
 #### 병렬 실행
 
-독립적인 Issue는 세션을 여러 개 열어 동시에 처리할 수 있다. 예를 들어 Claude Code 터미널과 Codex 터미널을 각각 열고 서로 다른 Issue를 실행한다.
+병렬 처리는 터미널을 여러 개 여는 것이다. 터미널마다 세션 하나가 서로 다른 Issue 하나를 처리한다. Claude Code와 Codex를 섞어도 되고, 한 CLI로 터미널 여러 개를 열어도 된다. 스킬이 subagent나 worker 프로세스를 띄우지 않으므로 각 Issue에 직접 개입할 수 있고, CLI별 남은 사용량에 맞춰 작업량을 나눌 수 있다.
 
 ```text
-(터미널 1, claude) /execute-tasks docs/tasks/issue-123.md
-(터미널 2, codex)  $execute-tasks docs/tasks/issue-456.md
+$order-issues                     # Start now: #3, #4
+(터미널 1, claude) /work-issue 3
+(터미널 2, codex)  $work-issue 4
 ```
 
-- `$execute-tasks`는 시작할 때 Issue의 lease를 잡는다. 다른 세션이 이미 잡은 Issue는 실행하지 않고 보고한다.
-- 동시에 실행해도 되는지는 계획의 `- Touches:` 줄로 확인한다. `taskctl.py overlap --plans <계획 A> <계획 B>`가 `parallel`이면 병렬로, `sequential`이면 앞 Issue의 PR이 병합된 뒤 실행한다.
-- `taskctl.py workspace list`로 Issue별 worktree, 브랜치, dirty 상태, lease를 확인한다.
+- 세션은 시작할 때 Issue의 lease를 잡는다. 다른 세션이 이미 잡은 Issue는 실행하지 않고 보고한다.
+- 두 Issue의 계획이 모두 있으면 `taskctl.py overlap --plans <계획 A> <계획 B>`로 겹침을 확인한다. `sequential`이면 앞 Issue의 PR이 병합된 뒤 실행한다. `$order-issues`도 이 결과를 충돌로 반영한다.
+- `taskctl.py workspace list`로 Issue별 worktree, 브랜치, dirty 상태, 단계, lease를 확인한다.
 - 먼저 병합된 PR 때문에 남은 PR의 base가 바뀌면 `$repair-pr`로 갱신한다.
-- 사용량 한도로 세션이 멈춰도 commit된 Task와 진행 기록은 worktree에 남는다. 같은 명령을 다른 CLI에서 실행해 이어간다. 멈춘 세션의 lease는 `workspace list`로 확인한 뒤 `workspace release --force`로 해제한다.
+- 사용량 한도로 세션이 멈춰도 commit된 Task와 진행 기록은 worktree에 남는다. `workspace list`로 확인하고 `workspace release --force`로 멈춘 세션의 lease를 해제한 뒤, 다른 터미널이나 CLI에서 `$work-issue <N>`을 다시 실행해 이어간다.
 - Registry lock은 `fcntl`을 사용한다. Linux, macOS, WSL에서 동작하며 Windows 기본 Python은 지원하지 않는다.
 
 #### workspace 명령
@@ -145,34 +183,16 @@ Issue별 worktree와 registry는 `python3 <agent-skills>/skills/execute-tasks/sc
 | `stage` | 단계 완료를 기록하거나 Issue에 단계를 추가한다. | `workspace stage --issue 123 --complete plan` |
 | `state` | Issue 상태(`pending`, `running`, `blocked`, `interrupted`, `done`)를 기록한다. | `workspace state --issue 123 --set blocked --reason "<사유>"` |
 
-#### `$work-issues`로 여러 Issue 처리
-
-세션 하나에서 여러 Issue를 처리하려면 `$work-issues`를 명시적으로 호출한다.
-
-```text
-$work-issues #123 #456                     # 기본: 현재 CLI의 subagent, 동시 실행 2개
-$work-issues #123 #456 --concurrency 1     # 단일 에이전트처럼 한 Issue씩 처리
-$work-issues #123 #456 --runner process    # claude -p / codex exec worker
-```
-
-- 흐름: pipeline 검증 → 사전 점검(Git 쓰기 확인) → Issue별 precheck와 `$plan-tasks` → 계획 승인 한 번 → 겹치지 않는 Issue를 슬롯에 배정해 `$execute-tasks` 실행 → PR 승인 한 번 → Issue별 `$create-pr`.
-- 계획이 겹치는 Issue는 앞 Issue의 PR이 병합된 뒤 실행한다. 중단된 worker는 `interrupted`로 기록되고, 다시 호출하면 registry에서 이어서 진행한다.
-
-| 실행 방식 | 띄우는 주체 | 사용량 한도 |
-| --- | --- | --- |
-| manual | 사용자가 터미널마다 단위 스킬 실행 | 터미널(CLI)별로 분리 |
-| subagent | `$work-issues`가 현재 CLI의 subagent 실행 | coordinator와 공유 |
-| process | `$work-issues`가 `claude -p` 또는 `codex exec` 실행 | CLI별로 분리 |
+#### 단계 pipeline
 
 단계는 저장소의 `.agent-workflow/pipeline.json`으로 바꿀 수 있다. 파일이 없으면 `precheck → plan → execute → explain(선택) → pr` 기본값을 쓴다. 추가한 단계는 아직 도달하지 않은 단계에만 적용된다. 수정 후 `taskctl.py pipeline validate`로 확인한다.
 
 ```json
 {
-  "concurrency": 2,
   "stages": [
     {"id": "precheck", "skill": "builtin:precheck", "access": "read"},
     {"id": "plan", "skill": "plan-tasks", "gate": "approval", "access": "local-write"},
-    {"id": "execute", "skill": "execute-tasks", "access": "local-write", "modifies-code": true, "verifies": true, "parallel": true},
+    {"id": "execute", "skill": "execute-tasks", "access": "local-write", "modifies-code": true, "verifies": true},
     {"id": "polish", "skill": "write-ste", "access": "local-write", "modifies-code": true},
     {"id": "verify", "skill": "execute-tasks", "access": "local-write", "verifies": true},
     {"id": "pr", "skill": "create-pr", "gate": "approval", "access": "remote"}
@@ -180,7 +200,7 @@ $work-issues #123 #456 --runner process    # claude -p / codex exec worker
 }
 ```
 
-단계 필드와 receipt 형식은 [stage-contract.md](skills/work-issues/references/stage-contract.md), runner별 차이와 검증 현황은 [runtimes.md](skills/work-issues/references/runtimes.md)를 따른다.
+단계 필드와 결과 형식은 [stage-contract.md](skills/work-issue/references/stage-contract.md)를 따른다.
 
 필요하면 구현과 검증 후 PR을 생성한다.
 
