@@ -14,8 +14,8 @@ prefix_rule(
     decision = "allow",
 )
 
-# Publication stays behind explicit user approval in the skills.
+# The create-pr skill requires explicit publication authorization before this push.
 prefix_rule(
-    pattern = ["git", "push"],
-    decision = "forbidden",
+    pattern = ["git", "push", "-u"],
+    decision = "prompt",
 )
