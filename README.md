@@ -21,7 +21,7 @@ done
 
 - 요구 사항: Git, Python 3.10 이상, GitHub CLI(`gh auth login`). `$explain-diff`는 Notion MCP가 필요하다. Linux, macOS, WSL에서 동작한다.
 - 호출: Codex는 `$skill-name`, Claude Code는 `/skill-name`. 아래 예시는 Codex 표기다. `$work-issue`와 `$explain-diff`는 직접 호출할 때만 실행된다.
-- Codex는 작업할 저장소의 루트에서 실행하고, commit과 worktree 생성을 위한 규칙 파일을 한 번 설치한다(`git push`는 금지된다).
+- Codex는 작업할 저장소의 루트에서 실행하고, commit과 worktree 생성 및 `$create-pr`의 `git push -u` 승인 요청을 위한 규칙 파일을 한 번 설치한다. Push와 PR 게시는 `$create-pr`에 대한 명시적 요청이 필요하다.
 
 ```bash
 mkdir -p ~/.codex/rules
