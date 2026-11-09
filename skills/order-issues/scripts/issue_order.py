@@ -41,10 +41,27 @@ def declared(body):
     return refs
 
 
+def loads_pages(text):
+    """Parse JSON; join concatenated arrays (`glab api --paginate` prints one per page)."""
+    decoder, values, index = json.JSONDecoder(), [], 0
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index == len(text):
+            break
+        value, index = decoder.raw_decode(text, index)
+        values.append(value)
+    if len(values) == 1:
+        return values[0]
+    if values and all(isinstance(value, list) for value in values):
+        return [item for value in values for item in value]
+    raise ValueError("expected one JSON value or concatenated JSON arrays")
+
+
 def load_issues(path):
     try:
         text = sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
-        issues = json.loads(text)
+        issues = loads_pages(text)
     except (OSError, ValueError) as exc:
         raise OrderError(f"Invalid issue list {path}: {exc}")
     if not isinstance(issues, list) or not all(

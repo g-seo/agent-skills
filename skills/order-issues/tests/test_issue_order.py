@@ -64,6 +64,8 @@ class IssueOrderTests(unittest.TestCase):
         self.assertEqual(result["tracks"], [[2, 1]])
         self.assertEqual(result["issues"]["1"]["depends_on"], [2])
         self.assertNotIn("9001", result["issues"])
+        paged = self.order(json.dumps(issues[:1]) + json.dumps(issues[1:]) + "\n")
+        self.assertEqual(paged["tracks"], [[2, 1]])
 
     def test_cycles_are_reported_and_block_dependents(self):
         result = self.order([issue(1, 2), issue(2, 1), issue(3, 1), issue(4)])

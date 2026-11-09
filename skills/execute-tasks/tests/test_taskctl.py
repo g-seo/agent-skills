@@ -320,7 +320,11 @@ Plan approval: approved
         self.assertEqual(run(), first)
         notes.append({"id": 14, "body": "New requirement", "system": False})
         notes_path.write_text(json.dumps(notes), encoding="utf-8")
-        self.assertNotEqual(run(), first)
+        changed = run()
+        self.assertNotEqual(changed, first)
+        # `glab api --paginate` prints one JSON array per page.
+        notes_path.write_text("".join(json.dumps([note]) for note in notes) + "\n", encoding="utf-8")
+        self.assertEqual(run(), changed)
 
     def test_gitlab_issue_plan_requires_valid_source_digest(self):
         content = self.plan.read_text(encoding="utf-8")

@@ -127,11 +127,28 @@ def plan_load(path, require_approval=False):
     }
 
 
+def loads_pages(text):
+    """Parse JSON; join concatenated arrays (`glab api --paginate` prints one per page)."""
+    decoder, values, index = json.JSONDecoder(), [], 0
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index == len(text):
+            break
+        value, index = decoder.raw_decode(text, index)
+        values.append(value)
+    if len(values) == 1:
+        return values[0]
+    if values and all(isinstance(value, list) for value in values):
+        return [item for value in values for item in value]
+    raise ValueError("expected one JSON value or concatenated JSON arrays")
+
+
 def read_json(path, what):
     try:
         if path == "-":
-            return json.load(sys.stdin)
-        return json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
+            return loads_pages(sys.stdin.read())
+        return loads_pages(Path(path).expanduser().read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise WorkflowError(f"Invalid {what} JSON: {exc}")
 
