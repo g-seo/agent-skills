@@ -54,7 +54,7 @@ python3 <this-skill>/scripts/taskctl.py overlap --plans <plan-a> <plan-b>
 
 `<this-skill>` is the real path of the directory of the loaded `execute-tasks/SKILL.md`; resolve it, including symlinks, in the current session instead of assuming an install path. The script resolves state from the current Git checkout, not from its own location. Substitute the absolute path in each command; agent shells may not keep variables between commands. After a task plan revision approved by the user, call `sync-plan --approved` only after reviewing the diff. Sync refuses changes to completed task definitions; active/blocked tasks may be revised only after user approval and when all new dependencies are already completed.
 
-For maintenance issues, save `gh issue view --json title,body,state,labels,comments` output temporarily and run `taskctl.py source-digest --input <json-path>`. The canonical digest covers title, body, state, sorted label names, and comment IDs/bodies; it ignores `updatedAt` and other timestamps. Compare this value with the plan's `Source digest`.
+For maintenance issues, save the forge's issue JSON temporarily and run `taskctl.py source-digest --input <json-path>`. On GitHub, use `gh issue view --json title,body,state,labels,comments`. On GitLab, save the issue and its notes separately and add `--comments <notes-path>` (see [forges.md](forges.md)). The canonical digest covers title, body, state, sorted label names, and comment IDs/bodies; it ignores `updatedAt` and other timestamps. Compare this value with the plan's `Source digest`.
 
 ## Whole-plan evidence
 After every task is completed, use the same receipt shape without `task_id` or `diff_review`:

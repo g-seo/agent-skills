@@ -1,14 +1,14 @@
 ---
 name: repair-pr
-description: On explicit user request, repair actionable maintainer feedback, merge conflicts, or failing CI in an existing ordinary PR; test and push scoped fixes without merging or auto-resolving reviewer conversations.
+description: On explicit user request, repair actionable maintainer feedback, merge conflicts, or failing CI in an existing ordinary GitHub PR or GitLab MR; test and push scoped fixes without merging or auto-resolving reviewer conversations.
 ---
 
 # Repair PR — one PR, one pass
 
 ## Preconditions
-- User explicitly identifies PR URL/number or unambiguous current PR and authorizes repair. If the PR's head branch belongs to a registered issue workspace (sibling `execute-tasks/scripts/taskctl.py workspace list`, called by its resolved real path), work in that worktree; otherwise use the existing branch in the current checkout as before. Run Git with the working checkout as the working directory and no options before the subcommand (no `git -C`). Use existing branch; for OSS confirm fork head and upstream base. Read `AGENTS.md`, `CONTRIBUTING.md`, repository PR/review policies.
-- Inspect `git status`, pending operations, head SHA, current GitHub PR state and expected branch. Dirty workspace or ambiguity → pause rather than discard changes. Do not use stack-maintenance tools or subagents.
-- Gather relevant CI check conclusions and failed logs via `gh pr checks` / `gh run view --log-failed` where allowed; read unresolved maintainer and other reviewer feedback. Distinguish stale findings, suggestions and actionable defects.
+- User explicitly identifies PR URL/number or unambiguous current PR and authorizes repair. Resolve the forge (GitHub or GitLab) from the repository remote and run forge commands as mapped in sibling `execute-tasks/references/forges.md`; on GitLab, "PR" means a merge request (MR). If the PR's head branch belongs to a registered issue workspace (sibling `execute-tasks/scripts/taskctl.py workspace list`, called by its resolved real path), work in that worktree; otherwise use the existing branch in the current checkout as before. Run Git with the working checkout as the working directory and no options before the subcommand (no `git -C`). Use existing branch; for OSS confirm fork head and upstream base. Read `AGENTS.md`, `CONTRIBUTING.md`, repository PR/review policies.
+- Inspect `git status`, pending operations, head SHA, current PR/MR state and expected branch. Dirty workspace or ambiguity → pause rather than discard changes. Do not use stack-maintenance tools or subagents.
+- Gather relevant CI check conclusions and failed logs with the forge's CI status and failed-log commands where allowed (GitHub Actions or GitLab CI); read unresolved maintainer and other reviewer feedback. Distinguish stale findings, suggestions and actionable defects.
 
 ## Fix loop
 1. Reproduce or trace each finding against the correct current head. Group duplicate findings by underlying cause; do **not** fix unrelated pre-existing failures or broaden the user-approved issue scope.

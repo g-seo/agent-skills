@@ -1,8 +1,8 @@
 # Implementation Tasks
 
-Source: <GitHub issue URL or approved planning artifact path>
+Source: <GitHub or GitLab issue URL or approved planning artifact path>
 Source revision: <observed issue updatedAt or document revision; informational>
-Source digest: <sha256:... for GitHub issue content; omit for immutable local documents>
+Source digest: <sha256:... for issue content; omit for immutable local documents>
 Plan approval: draft
 
 ## T001: <one coherent, verifiable change>

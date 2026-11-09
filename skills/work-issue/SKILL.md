@@ -1,6 +1,6 @@
 ---
 name: work-issue
-description: Drive one approved GitHub issue through the stage pipeline (precheck, plan, execute, optional explain, PR) in the current session and terminal, invoking the same unit skills used directly and resuming from recorded progress. One issue per session; run parallel issues in separate terminals. Invoke explicitly.
+description: Drive one approved GitHub or GitLab issue through the stage pipeline (precheck, plan, execute, optional explain, PR) in the current session and terminal, invoking the same unit skills used directly and resuming from recorded progress. One issue per session; run parallel issues in separate terminals. Invoke explicitly.
 disable-model-invocation: true
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Usage: `$work-issue <N> [--base <branch>]`. Use `$order-issues` to choose `<N>`.
 
-`<taskctl>` is the resolved real path of sibling `execute-tasks/scripts/taskctl.py`. Read [references/stage-contract.md](references/stage-contract.md) for stage fields and results.
+`<taskctl>` is the resolved real path of sibling `execute-tasks/scripts/taskctl.py`. Read [references/stage-contract.md](references/stage-contract.md) for stage fields and results. Resolve the forge (GitHub or GitLab) from the repository remote and run forge commands as mapped in sibling `execute-tasks/references/forges.md`.
 
 ## Authority and limits
 - The invocation authorizes the local stages of issue `<N>` only: precheck, its workspace, a planning draft, and execution after the plan is approved. Plan approval and every `approval`-gated or `remote` stage still ask the user in this session. Never merge, close issues, post comments, or touch another issue.
@@ -18,7 +18,7 @@ Usage: `$work-issue <N> [--base <branch>]`. Use `$order-issues` to choose `<N>`.
 
 ## Procedure
 1. **Pipeline:** run `<taskctl> pipeline validate`. Stop on an error.
-2. **Precheck:** read `gh issue view <N> --json state,title,body,url`. Stop when the issue is closed, or an open PR from another branch references it. List open issues named in its `Depends on:` or `Blocked by` lines; if any exist, show them and ask whether to proceed (default: stop and suggest `$order-issues`). In `<taskctl> workspace list`, a lease held by another owner means another session owns the issue: stop and report.
+2. **Precheck:** read the issue's state, title, body and URL with the forge's read-one-issue command. Stop when the issue is closed (`CLOSED` on GitHub, `closed` on GitLab), or an open PR/MR from another branch references it. List open issues named in its `Depends on:` or `Blocked by` lines; if any exist, show them and ask whether to proceed (default: stop and suggest `$order-issues`). In `<taskctl> workspace list`, a lease held by another owner means another session owns the issue: stop and report.
 3. **Workspace:** run `<taskctl> workspace get --issue <N> [--base <base>]`, then `workspace claim --issue <N> --owner <owner>` with an ID unique to this session (for example `<cli>:<host>:<start-time>`). Read `<taskctl> pipeline show --issue <N>`; resume at `next_stage` and report completed and skipped stages. Record `--complete precheck` when it is not yet recorded.
 4. **Stages:** for each stage from `next_stage`, in order:
    - Set `workspace state --issue <N> --set running`, then invoke the stage skill: `$plan-tasks <issue URL>`, `$execute-tasks <plan path>` (tell it to reuse lease owner `<owner>` and leave the release to this run), `$create-pr` for issue `<N>`, or the configured skill with the issue and plan path.
