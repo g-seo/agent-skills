@@ -19,7 +19,7 @@ for dir in ~/.agents/skills ~/.claude/skills; do
 done
 ```
 
-- 요구 사항: Git, Python 3.10 이상, GitHub CLI(`gh auth login`). `$explain-diff`는 Notion MCP가 필요하다. Linux, macOS, WSL에서 동작한다.
+- 요구 사항: Git, Python 3.10 이상, 저장소 remote에 맞는 CLI — GitHub는 `gh`(`gh auth login`), gitlab.com은 `glab`(`glab auth login`). `$explain-diff`는 Notion MCP가 필요하다. Linux, macOS, WSL에서 동작한다.
 - 호출: Codex는 `$skill-name`, Claude Code는 `/skill-name`. 아래 예시는 Codex 표기다. `$work-issue`와 `$explain-diff`는 직접 호출할 때만 실행된다.
 - Codex는 작업할 저장소의 루트에서 실행하고, commit과 worktree 생성 및 `$create-pr`의 `git push -u` 승인 요청을 위한 규칙 파일을 한 번 설치한다. Push와 PR 게시는 `$create-pr`에 대한 명시적 요청이 필요하다.
 
@@ -32,7 +32,7 @@ sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/ru
 
 | Skill | 역할 |
 | --- | --- |
-| `$plan-change` | 기존 코드를 조사하고 해결 방향을 합의해 GitHub Issue를 만든다. |
+| `$plan-change` | 기존 코드를 조사하고 해결 방향을 합의해 GitHub 또는 GitLab Issue를 만든다. |
 | `$order-issues` | 열린 Issue의 의존성을 분석해 작업 순서를 알려 준다. 작업은 하지 않는다. |
 | `$work-issue` | Issue 하나를 계획 → 구현 → PR까지 진행한다. |
 | `$plan-tasks` | 승인된 Issue나 계획 하나를 순차 Task로 나눈다. |
@@ -42,7 +42,7 @@ sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/ru
 | `$cleanup-branch` | 병합이 확인된 브랜치와 worktree를 정리한다. |
 | `$explain-diff` | PR 전 변경을 설명하는 Notion 학습 페이지를 만든다. |
 | `$init-project` | `PROJECT_BRIEF.md`로 신규 프로젝트의 PRD와 아키텍처를 설계한다. |
-| `$contribute` | 지정한 upstream Issue 하나의 기여 방안을 설계한다. |
+| `$contribute` | 지정한 upstream GitHub Issue 하나의 기여 방안을 설계한다. |
 | `$write-ste` | 기술 문서와 Issue, PR 문구를 명확하게 다듬는다. |
 
 ## 사용 흐름
@@ -117,4 +117,5 @@ $create-pr
 - Issue 생성, push, PR 생성, 댓글, merge에는 각각 사용자 승인이 필요하다. 스킬은 merge하지 않는다.
 - 계획 스킬은 코드를 구현하지 않는다.
 - 사용자의 작업을 자동으로 reset, clean, stash하지 않는다.
-- 승인 요청과 설명은 한국어로, GitHub에 게시하는 제목과 본문은 영어로 쓴다.
+- 승인 요청과 설명은 한국어로, GitHub/GitLab에 게시하는 제목과 본문은 영어로 쓴다.
+- 스킬은 remote 호스트로 GitHub(`github.com`)와 GitLab(`gitlab.com`)을 구분한다. GitLab에서는 PR을 MR로 읽는다. 명령 대응표는 [forges.md](skills/execute-tasks/references/forges.md)에 있다. `$contribute`는 GitHub 전용이다.
