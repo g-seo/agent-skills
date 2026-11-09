@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Dependency order for open GitHub issues. Read-only; stdlib only, Python 3.10+.
+"""Dependency order for open GitHub or GitLab issues. Read-only; stdlib only, Python 3.10+.
 
-Input is `gh issue list --state open --json number,title,body` output. Declared
+Input is `gh issue list --state open --json number,title,body` output, or
+`glab issue list --output json` output (`iid` and `description` are read as the
+issue number and body; the global `id` is ignored). Declared
 dependencies are read from `Depends on: #N` and `Blocked by #N` lines in issue
 bodies; `--depends` and `--conflict` add edges the agent inferred. A dependency
 on an issue that is not open counts as satisfied and is reported under `external`.
@@ -45,9 +47,16 @@ def load_issues(path):
         issues = json.loads(text)
     except (OSError, ValueError) as exc:
         raise OrderError(f"Invalid issue list {path}: {exc}")
-    if not isinstance(issues, list) or not all(isinstance(item, dict) and "number" in item for item in issues):
-        raise OrderError("Issue list must be a JSON array of objects with `number`")
-    return {int(item["number"]): item for item in issues}
+    if not isinstance(issues, list) or not all(
+        isinstance(item, dict) and ("number" in item or "iid" in item) for item in issues
+    ):
+        raise OrderError("Issue list must be a JSON array of objects with `number` (GitHub) or `iid` (GitLab)")
+    result = {}
+    for item in issues:
+        number = int(item["number"] if "number" in item else item["iid"])
+        body = item["body"] if "body" in item else item.get("description")
+        result[number] = {**item, "body": body}
+    return result
 
 
 def components(nodes, links):
@@ -193,7 +202,7 @@ def render(result):
 
 def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--issues", required=True, help="gh issue list JSON path, or - for stdin")
+    parser.add_argument("--issues", required=True, help="gh or glab issue list JSON path, or - for stdin")
     parser.add_argument("--depends", type=pair, action="append", default=[], metavar="N:M",
                         help="issue N depends on issue M (inferred edge)")
     parser.add_argument("--conflict", type=pair, action="append", default=[], metavar="N:M",
