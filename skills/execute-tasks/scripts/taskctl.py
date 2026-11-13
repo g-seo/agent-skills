@@ -27,10 +27,6 @@ TOUCHES_RE = re.compile(r"^- Touches:\s*(.*?)\s*$", re.MULTILINE)
 APPROVED_RE = re.compile(r"^Plan approval:\s*approved\s*$", re.MULTILINE | re.IGNORECASE)
 SOURCE_DIGEST_RE = re.compile(r"^Source digest:\s*(sha256:[0-9a-f]{64})\s*$", re.MULTILINE)
 SOURCE_RE = re.compile(r"^Source:\s*(.+?)\s*$", re.MULTILINE)
-ISSUE_URL_RES = (
-    re.compile(r"github\.com/[^/\s]+/[^/\s]+/issues/\d+"),
-    re.compile(r"gitlab\.com/[^\s]+?/-/issues/\d+"),
-)
 
 
 class WorkflowError(Exception):
@@ -114,9 +110,9 @@ def plan_load(path, require_approval=False):
     if len(source_digest_lines) > 1 or (source_digest_lines and source_digest is None):
         raise WorkflowError("Source digest must be one exact `Source digest: sha256:<64 lowercase hex>` line")
     source = SOURCE_RE.search(content)
-    issue_source = bool(source and any(pattern.search(source.group(1)) for pattern in ISSUE_URL_RES))
+    issue_source = bool(source and "github.com/" in source.group(1) and "/issues/" in source.group(1))
     if issue_source and not source_digest:
-        raise WorkflowError("Issue plans require a canonical `Source digest` line")
+        raise WorkflowError("GitHub issue plans require a canonical `Source digest` line")
     return {
         "path": str(plan_path),
         "sha256": digest(content),
@@ -127,58 +123,28 @@ def plan_load(path, require_approval=False):
     }
 
 
-def loads_pages(text):
-    """Parse JSON; join concatenated arrays (`glab api --paginate` prints one per page)."""
-    decoder, values, index = json.JSONDecoder(), [], 0
-    while True:
-        while index < len(text) and text[index].isspace():
-            index += 1
-        if index == len(text):
-            break
-        value, index = decoder.raw_decode(text, index)
-        values.append(value)
-    if len(values) == 1:
-        return values[0]
-    if values and all(isinstance(value, list) for value in values):
-        return [item for value in values for item in value]
-    raise ValueError("expected one JSON value or concatenated JSON arrays")
-
-
-def read_json(path, what):
+def canonical_issue_digest(path):
     try:
         if path == "-":
-            return loads_pages(sys.stdin.read())
-        return loads_pages(Path(path).expanduser().read_text(encoding="utf-8"))
+            source = json.load(sys.stdin)
+        else:
+            source = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        raise WorkflowError(f"Invalid {what} JSON: {exc}")
-
-
-def canonical_issue_digest(path, comments_path=None):
-    """Digest GitHub (`gh issue view`) or GitLab (`glab issue view` plus notes) issue content."""
-    if path == "-" and comments_path == "-":
-        raise WorkflowError("Only one of --input and --comments can read stdin")
-    source = read_json(path, "issue")
+        raise WorkflowError(f"Invalid issue JSON: {exc}")
     if not isinstance(source, dict):
         raise WorkflowError("Issue JSON must be an object")
     comments = source.get("comments", [])
-    if comments_path is not None:
-        # GitLab: issue notes come from a separate API call; system notes are not discussion.
-        comments = read_json(comments_path, "comments")
-        if not isinstance(comments, list):
-            raise WorkflowError("Comments JSON must be a list")
-        comments = [note for note in comments if not (isinstance(note, dict) and note.get("system"))]
     labels = source.get("labels", [])
     if not isinstance(comments, list) or not isinstance(labels, list):
         raise WorkflowError("Issue comments and labels must be lists")
-    body = source["body"] if "body" in source else source.get("description")
     try:
         canonical = {
-            "body": body or "",
+            "body": source.get("body") or "",
             "comments": [
                 {"body": comment.get("body") or "", "id": str(comment["id"])}
                 for comment in comments
             ],
-            "labels": sorted({str(label["name"] if isinstance(label, dict) else label) for label in labels}),
+            "labels": sorted({str(label["name"]) for label in labels}),
             "state": str(source["state"]),
             "title": str(source["title"]),
         }
@@ -348,7 +314,7 @@ def initialize(args, plan, root, state_path, branch, head, state):
     if not branch:
         raise WorkflowError("Detached HEAD not supported; select an execution branch first")
     if plan["issue_source"] and not args.base_branch:
-        raise WorkflowError("Issue execution requires `--base-branch` and a feature branch")
+        raise WorkflowError("GitHub issue execution requires `--base-branch` and a feature branch")
     if not head:
         raise WorkflowError("Repository has no commits. Create the reviewed planning baseline commit first")
     base_sha = None
@@ -799,7 +765,7 @@ def pipeline_act(args):
 
 def act(args):
     if args.command == "source-digest":
-        return canonical_issue_digest(args.input, args.comments)
+        return canonical_issue_digest(args.input)
     if args.command == "pipeline":
         return pipeline_act(args)
     if args.command == "workspace":
@@ -965,10 +931,7 @@ def cli():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     digest_parser = subparsers.add_parser("source-digest")
-    digest_parser.add_argument("--input", required=True,
-                               help="`gh issue view` or `glab issue view` JSON path, or - for stdin")
-    digest_parser.add_argument("--comments",
-                               help="GitLab issue notes JSON path (`glab api .../notes`); replaces `comments`")
+    digest_parser.add_argument("--input", required=True, help="gh issue view JSON path, or - for stdin")
     pipeline_parser = subparsers.add_parser("pipeline")
     pipeline_commands = pipeline_parser.add_subparsers(dest="pipeline_command", required=True)
     for name in ("show", "validate"):

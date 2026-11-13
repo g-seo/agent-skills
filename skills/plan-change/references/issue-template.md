@@ -1,6 +1,6 @@
-# Issue Template
+# GitHub Issue Template
 
-Use the target repository's issue template (`.github/ISSUE_TEMPLATE/` or `.gitlab/issue_templates/`) and title convention when present. Use this fallback only when the repository does not define them. Omit a section only when it is genuinely inapplicable, and state `None` where an empty section could hide an unresolved decision.
+Use the target repository's issue template and title convention when present. Use this fallback only when the repository does not define them. Omit a section only when it is genuinely inapplicable, and state `None` where an empty section could hide an unresolved decision.
 
 ## Title
 

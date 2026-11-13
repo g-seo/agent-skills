@@ -55,18 +55,6 @@ class IssueOrderTests(unittest.TestCase):
         self.assertEqual(blocked["start_now"], [1, 4])
         self.assertEqual(blocked["issues"]["2"]["status"], "waiting")
 
-    def test_gitlab_issue_list_uses_iid_and_description(self):
-        issues = [
-            {"id": 9001, "iid": 1, "title": "Issue 1", "description": "- Depends on: #2\n"},
-            {"id": 9002, "iid": 2, "title": "Issue 2", "description": None},
-        ]
-        result = self.order(issues)
-        self.assertEqual(result["tracks"], [[2, 1]])
-        self.assertEqual(result["issues"]["1"]["depends_on"], [2])
-        self.assertNotIn("9001", result["issues"])
-        paged = self.order(json.dumps(issues[:1]) + json.dumps(issues[1:]) + "\n")
-        self.assertEqual(paged["tracks"], [[2, 1]])
-
     def test_cycles_are_reported_and_block_dependents(self):
         result = self.order([issue(1, 2), issue(2, 1), issue(3, 1), issue(4)])
         self.assertEqual(result["cycles"], [1, 2])
