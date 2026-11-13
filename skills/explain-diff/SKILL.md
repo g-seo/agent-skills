@@ -8,6 +8,11 @@ disable-model-invocation: true
 
 Create one Notion page that helps the user understand the current branch's proposed PR changes before publication. Treat this as an optional, explicitly invoked learning step in `$plan-tasks → $execute-tasks → $explain-diff → $create-pr`; it does not replace implementation, verification, or publication.
 
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- The Notion page follows the same language rule (see Teach the change).
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
+
 ## Establish the change
 
 1. For an issue-backed change, resolve the issue worktree with sibling `execute-tasks/scripts/taskctl.py workspace get --issue <N>` (by its resolved real path; omit `--issue` inside a registered worktree) and run every Git command there, with no options before the subcommand (no `git -C`). Read the repository's `AGENTS.md`, the relevant `SKILL.md` instructions, and actual Git status. Identify the repository URL, current branch, `HEAD` SHA, and intended PR base from Git and workflow records. Do not infer the base from a branch name alone.

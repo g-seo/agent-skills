@@ -5,6 +5,10 @@ description: On explicit user request, repair actionable maintainer feedback, me
 
 # Repair PR — one PR, one pass
 
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
+
 ## Preconditions
 - User explicitly identifies PR URL/number or unambiguous current PR and authorizes repair. If the PR's head branch belongs to a registered issue workspace (sibling `execute-tasks/scripts/taskctl.py workspace list`, called by its resolved real path), work in that worktree; otherwise use the existing branch in the current checkout as before. Run Git with the working checkout as the working directory and no options before the subcommand (no `git -C`). Use existing branch; for OSS confirm fork head and upstream base. Read `AGENTS.md`, `CONTRIBUTING.md`, repository PR/review policies.
 - Inspect `git status`, pending operations, head SHA, current GitHub PR state and expected branch. Dirty workspace or ambiguity → pause rather than discard changes. Do not use stack-maintenance tools or subagents.

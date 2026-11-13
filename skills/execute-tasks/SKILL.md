@@ -5,6 +5,10 @@ description: Implement an explicitly approved TASKS.md one dependency-ready task
 
 # Execute Tasks — one session per issue and verified commit loop
 
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
+
 ## Setup and safety
 - This invocation authorizes completing approved tasks with local **code edits and coherent Git commits**; it does **not** authorize PR publication, issue closing, remote push, merge, release, production writes, or new goals.
 - Load `AGENTS.md`, task plan, its exact source artifact (including the GitHub issue for maintenance), and actual git status. For an issue source, regenerate the canonical content digest described in the plan and reconcile only if `Source digest` changed; an `updatedAt`-only change is informational and does not block execution. Run one session per issue: other issues may run concurrently in their own worktrees, but never start a second run on the same issue or worktree. A run invoked by `$work-issue` in the same session is that issue's run; a run never spawns subagents itself. Preserve user changes; unexpected dirty paths beyond the approved plan handoff or an ambiguous base branch → ask before modifying.

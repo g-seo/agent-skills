@@ -10,6 +10,10 @@ Usage: `$work-issue <N> [--base <branch>]`. Use `$order-issues` to choose `<N>`.
 
 `<taskctl>` is the resolved real path of sibling `execute-tasks/scripts/taskctl.py`. Read [references/stage-contract.md](references/stage-contract.md) for stage fields and results.
 
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
+
 ## Authority and limits
 - The invocation authorizes the local stages of issue `<N>` only: precheck, its workspace, a planning draft, and execution after the plan is approved. Plan approval and every `approval`-gated or `remote` stage still ask the user in this session. Never merge, close issues, post comments, or touch another issue.
 - This session handles one issue. Parallel work means another terminal running `$work-issue` (or a unit skill) for a different issue, in either CLI. Never spawn subagents, background processes, or a second issue.
