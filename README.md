@@ -58,13 +58,19 @@ sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/ru
 ```
 
 - `$plan-change`는 Issue 사이의 선행 관계를 본문의 `- Depends on: #N` 줄로 기록한다. Issue만 만들고 세션을 끝내도 된다.
-- `$order-issues`는 어느 세션에서 실행해도 같은 결과를 낸다. 예: #2는 #3에, #1은 #4에 의존할 때
+- `$order-issues`는 어느 세션에서 실행해도 같은 순서를 내고, 명령은 실행 중인 CLI 표기로 보여 준다. 예: Codex에서 #2는 #3에, #1은 #4에 의존할 때
 
-  ```text
-  Track 1: #3 -> #2
-  Track 2: #4 -> #1
-  Start now (one terminal each): #3, #4
-  Single-terminal order: #3 -> #2 -> #4 -> #1
+  ```markdown
+  **지금 시작** `$work-issue 3` `$work-issue 4`
+
+  | 터미널 1 | 터미널 2 |
+  | --- | --- |
+  | ▶ #3 Add token refresh API | ▶ #4 Add upload queue |
+  | ⏳ #2 Return 401 for expired tokens | ⏳ #1 Retry failed uploads |
+
+  열 = 동시에 돌릴 터미널 · ▶ 지금 시작 · ⏳ 앞 이슈 병합 후 · ⏸ 동시 진행 불가 · 🔄 진행 중
+
+  한 터미널로: #3 → #2 → #4 → #1
   ```
 
 - `$work-issue`는 계획 승인과 PR 승인을 같은 세션에서 묻는다. 언제든 끼어들어 방향을 바꿀 수 있다.
@@ -77,7 +83,7 @@ sed "s|@AGENT_SKILLS@|$PWD|g" templates/codex/agent-workflow.rules > ~/.codex/ru
 (터미널 2, codex)  $work-issue 4
 ```
 
-- `Start now`에 나온 Issue를 터미널마다 하나씩 실행한다. CLI는 남은 사용량에 맞춰 고른다.
+- `지금 시작`에 나온 Issue를 터미널마다 하나씩 실행한다. CLI는 남은 사용량에 맞춰 고른다.
 - Issue마다 worktree(`.worktrees/issue-<N>`)와 브랜치가 따로 있어 작업이 섞이지 않는다. 같은 Issue는 두 세션에서 동시에 실행되지 않는다.
 - 먼저 병합된 PR 때문에 다른 PR에 conflict가 생기면 `$repair-pr <PR>`로 고친다.
 
@@ -131,4 +137,5 @@ $create-pr
 - Issue 생성, push, PR 생성, 댓글, merge에는 각각 사용자 승인이 필요하다. 스킬은 merge하지 않는다.
 - 계획 스킬은 코드를 구현하지 않는다.
 - 사용자의 작업을 자동으로 reset, clean, stash하지 않는다.
-- 승인 요청과 설명은 한국어로, GitHub에 게시하는 제목과 본문은 영어로 쓴다.
+- 스킬이 사용자에게 하는 설명, 질문, 승인 요청, 보고는 한국어로, GitHub에 게시하는 제목과 본문은 영어로 쓴다.
+- 스킬이 다음에 실행할 스킬을 안내할 때는 실행 중인 CLI 표기(Claude Code `/skill-name`, Codex `$skill-name`)를 쓴다.

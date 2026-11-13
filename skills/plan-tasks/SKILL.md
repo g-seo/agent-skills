@@ -5,6 +5,10 @@ description: Turn one approved source—including exactly one GitHub issue for a
 
 # Plan Tasks — shared planner
 
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
+
 ## Read inputs
 - NEW PROJECT: approved `docs/PRD.md` plus `docs/ARCHITECTURE.md`.
 - MAINTENANCE: one exact, user-approved GitHub issue URL or an unambiguous `owner/repo#number`. Fetch its title, body, state, labels and discussion, and use that issue as the sole scope authority. Read linked or sibling issues only as context; never merge their scope into this task plan.

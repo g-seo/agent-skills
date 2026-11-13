@@ -14,3 +14,8 @@ Use practical clarity principles inspired by ASD-STE100; **this is not formal ST
 5. Preserve all protected substrings exactly: code, CLI commands, paths, identifiers, test output, Git SHA, issue links, `Closes`/`Refs` lines, PR template headings, security warnings and disclosure text.
 6. Do not invent successful checks, approvals, screenshots or requirements. Recompare revised prose with evidence before publishing.
 7. Keep output concise, neutral and appropriate for collaborators. Explain only substantive ambiguity and changes rather than rewriting unrelated text.
+
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- This rule covers what you tell the user; the revised text keeps its own language (step 1).
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.

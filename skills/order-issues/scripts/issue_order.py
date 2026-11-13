@@ -166,28 +166,59 @@ def analyze(issues, extra_deps=(), conflicts=(), active=()):
     }
 
 
-def render(result):
-    lines = []
-    tag = {"active": " (active)", "cycle": " (cycle)", "blocked-by-cycle": " (blocked by cycle)"}
-    for index, track in enumerate(result["tracks"], 1):
-        chain = " -> ".join(f"#{n}{tag.get(result['issues'][str(n)]['status'], '')}" for n in track)
-        lines.append(f"Track {index}: {chain}")
-    lines.append("Start now (one terminal each): " + (", ".join(f"#{n}" for n in result["start_now"]) or "none"))
-    held = [n for n in result["ready"] if n not in result["start_now"]]
-    if held:
-        lines.append("Ready but conflicting with a started issue: " + ", ".join(f"#{n}" for n in held))
-    lines.append("Single-terminal order: " + (" -> ".join(f"#{n}" for n in result["order"]) or "none"))
-    for number, info in result["issues"].items():
-        notes = []
-        if info["depends_on"]:
-            notes.append("waits for " + ", ".join(f"#{n}" for n in info["depends_on"]))
-        if info["conflicts_with"]:
-            notes.append("conflicts with " + ", ".join(f"#{n}" for n in info["conflicts_with"]))
-        lines.append(f"  #{number} [{info['status']}] {info['title']}" + (f" — {'; '.join(notes)}" if notes else ""))
+PREFIX = {"claude": "/", "codex": "$"}
+ICON = {"start": "▶", "waiting": "⏳", "conflict": "⏸", "active": "🔄"}
+LEGEND = "열 = 동시에 돌릴 터미널 · ▶ 지금 시작 · ⏳ 앞 이슈 병합 후 · ⏸ 동시 진행 불가 · 🔄 진행 중"
+COLUMNS = 4
+TITLE_WIDTH = 30
+
+
+def render(result, cli):
+    """Compact Korean Markdown report: one column per terminal, issues top to bottom."""
+    issues = result["issues"]
+    start_now = set(result["start_now"])
+
+    def icon(number):
+        info = issues[str(number)]
+        if info["status"] == "active":
+            return ICON["active"]
+        if number in start_now:
+            return ICON["start"]
+        return ICON["waiting"] if info["depends_on"] else ICON["conflict"]
+
+    def cell(number):
+        title = " ".join(issues[str(number)]["title"].split())
+        if len(title) > TITLE_WIDTH:
+            title = title[:TITLE_WIDTH - 1].rstrip() + "…"
+        return f"{icon(number)} #{number} {title}".rstrip().replace("|", "\\|")
+
+    def refs(numbers):
+        return ", ".join(f"#{n}" for n in numbers)
+
+    commands = " ".join(f"`{PREFIX[cli]}work-issue {n}`" for n in result["start_now"])
+    active = [int(n) for n, info in issues.items() if info["status"] == "active"]
+    head = f"**지금 시작** {commands or '없음 (진행 중인 PR 병합 후 다시 확인)'}"
+    lines = [head + (f" · 진행 중 {refs(active)}" if active else "")]
+
+    tracks = result["tracks"]
+    for first in range(0, len(tracks), COLUMNS):
+        group = tracks[first:first + COLUMNS]
+        lines += ["", "| " + " | ".join(f"터미널 {first + i}" for i in range(1, len(group) + 1)) + " |",
+                  "|" + " --- |" * len(group)]
+        for row in range(max(map(len, group))):
+            lines.append("| " + " | ".join(cell(t[row]) if row < len(t) else "" for t in group) + " |")
+    if not tracks:
+        lines += ["", "열린 이슈 없음"]
+    else:
+        lines += ["", LEGEND, "", "한 터미널로: " + " → ".join(f"#{n}" for n in result["order"])]
+
     if result["cycles"]:
-        lines.append("Cycles (fix the declarations): " + ", ".join(f"#{n}" for n in result["cycles"]))
-    for number, refs in result["external"].items():
-        lines.append(f"  #{number} references non-open " + ", ".join(f"#{n}" for n in refs) + " (treated as satisfied)")
+        lines += ["", f"⚠ 순환 의존성 {refs(result['cycles'])}: 선언 수정 필요"]
+    stuck = [int(n) for n, info in issues.items() if info["status"] == "blocked-by-cycle"]
+    if stuck:
+        lines += ["", f"⚠ 순환 때문에 시작 불가: {refs(stuck)}"]
+    for number, missing in result["external"].items():
+        lines += ["", f"⚠ #{number}의 선행 {refs(missing)}: 열린 이슈 아님, 충족으로 봄"]
     return "\n".join(lines)
 
 
@@ -201,13 +232,17 @@ def cli(argv=None):
     parser.add_argument("--active", type=int, action="append", default=[], metavar="N",
                         help="issue already in progress (claimed workspace or open PR)")
     parser.add_argument("--format", choices=("json", "text"), default="json")
+    parser.add_argument("--cli", choices=sorted(PREFIX),
+                        help="CLI running the report; sets the skill syntax in --format text (required there)")
     args = parser.parse_args(argv)
+    if args.format == "text" and not args.cli:
+        parser.error("--format text requires --cli claude|codex")
     try:
         result = analyze(load_issues(args.issues), args.depends, args.conflict, args.active)
     except OrderError as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 2
-    print(render(result) if args.format == "text" else json.dumps(result, indent=2, ensure_ascii=False))
+    print(render(result, args.cli) if args.format == "text" else json.dumps(result, indent=2, ensure_ascii=False))
     return 0
 
 

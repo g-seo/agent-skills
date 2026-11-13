@@ -7,8 +7,9 @@ description: On explicit user authorization, publish an existing verified change
 
 Read [references/pr-publishing.md](references/pr-publishing.md) for exact checklist and CLI examples. Invoke sibling `$write-ste` when installed for clear PR wording; if not present, follow the same clarity rules locally without claiming the skill ran.
 
-## Language
-Explain the proposed PR, scope, validation, and any required approval request to the user in Korean. Draft and publish GitHub PR titles and bodies in English. When requesting approval, pair a Korean explanation with the exact English title and body to be published; keep the Korean explanation outside the published text. Preserve required template headings, code, logs, identifiers, and quotations as written. Follow a different language only when the user explicitly requests it. This language rule does not add another approval step when publication is already authorized.
+## User-facing output
+- Explain the proposed PR, scope, validation, and any required approval request to the user in Korean. Draft and publish GitHub PR titles and bodies in English. When requesting approval, pair a Korean explanation with the exact English title and body to be published; keep the Korean explanation outside the published text. Preserve required template headings, code, logs, identifiers, and quotations as written. Follow a different language only when the user explicitly requests it. This language rule does not add another approval step when publication is already authorized.
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
 
 ## Scope and preflight
 1. Publication requires the user's explicit request (`$create-pr`, or an equivalent clearly authorized PR-publish instruction). `$execute-tasks` does not itself authorize a PR. Do not merge, enable auto-merge, reimplement code, or fix unrelated CI. No worker agents.

@@ -5,6 +5,10 @@ description: Finish work after PR merge by inspecting the current repository's r
 
 # Cleanup Branch — after confirmed PR merge
 
+## User-facing output
+- Explain, ask, request approval and report to the user in Korean unless the user asks for another language. Keep code, commands, paths, identifiers and quoted output as written.
+- Name a skill the user should run in the current CLI's syntax: `/skill-name` in Claude Code, `$skill-name` in Codex CLI. Skill text writes `$skill-name` for either CLI.
+
 ## Scope
 - Use this as the final step after completing work and merging its PR. A bare invocation authorizes inspection of all remaining local and remote work branches in the current repository and cleanup of those that satisfy the checks below. Discover candidates even when the checkout is already on the default/base branch; do not require the user to name a PR first.
 - A supplied PR URL/number or branch explicitly narrows the scope. Otherwise inspect all candidates, including branches from earlier completed work. Ask only when repository identity or the destination base cannot be resolved; preserve ambiguous candidates and continue with independently verified ones.

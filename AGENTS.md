@@ -17,6 +17,7 @@
 
 ## Cross-CLI Compatibility
 - Keep each workflow identical in Codex CLI and Claude Code. Codex invokes a skill as `$skill-name`; Claude Code invokes it as `/skill-name`. Skill text uses `$skill-name` to name sibling skills.
+- Every `SKILL.md` has a `## User-facing output` section: explain, ask, request approval and report to the user in Korean, and name a skill the user should run in the running CLI's syntax (`/skill-name` in Claude Code, `$skill-name` in Codex CLI). Text published to GitHub stays in English where a skill says so.
 - Do not hard-code one CLI's install path, tool name, or session model in shared instructions. Resolve bundled files relative to the loaded `SKILL.md`.
 - Use platform-specific settings only when behavior cannot be shared, such as `agents/openai.yaml` (Codex) and Claude-only frontmatter like `disable-model-invocation`. Keep matching policies in both.
 - `CLAUDE.md` imports this file; edit rules here only.
