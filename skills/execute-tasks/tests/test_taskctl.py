@@ -289,51 +289,6 @@ Plan approval: approved
         self.assertNotEqual(json.loads(first.stdout)["source_digest"], json.loads(third.stdout)["source_digest"])
 
 
-    def test_github_issue_digest_is_stable(self):
-        issue = {"title": "Fix behavior", "body": "Expected result", "state": "OPEN",
-                 "labels": [{"name": "bug"}], "comments": [{"id": "C1", "body": "Reproduction"}]}
-        result = cmd("python3", str(SCRIPT), "source-digest", "--input", "-", cwd=self.root,
-                     input_text=json.dumps(issue))
-        self.assertEqual(
-            json.loads(result.stdout)["source_digest"],
-            "sha256:5465a32123f9af5c56f96114f3ba0f482044b446a651e11579022aae70700ee1",
-        )
-
-    def test_gitlab_issue_digest_uses_description_labels_and_user_notes(self):
-        issue = {"iid": 7, "title": "Fix behavior", "description": "Expected result", "state": "opened",
-                 "labels": ["bug"], "updated_at": "2026-01-01T00:00:00Z"}
-        notes = [{"id": 11, "body": "Reproduction", "system": False},
-                 {"id": 12, "body": "added ~bug label", "system": True}]
-        issue_path = self.root / "issue.json"
-        notes_path = self.root / "notes.json"
-        issue_path.write_text(json.dumps(issue), encoding="utf-8")
-        notes_path.write_text(json.dumps(notes), encoding="utf-8")
-
-        def run():
-            result = cmd("python3", str(SCRIPT), "source-digest", "--input", str(issue_path),
-                         "--comments", str(notes_path), cwd=self.root)
-            return json.loads(result.stdout)["source_digest"]
-
-        first = run()
-        notes.append({"id": 13, "body": "changed the description", "system": True})
-        notes_path.write_text(json.dumps(notes), encoding="utf-8")
-        self.assertEqual(run(), first)
-        notes.append({"id": 14, "body": "New requirement", "system": False})
-        notes_path.write_text(json.dumps(notes), encoding="utf-8")
-        changed = run()
-        self.assertNotEqual(changed, first)
-        # `glab api --paginate` prints one JSON array per page.
-        notes_path.write_text("".join(json.dumps([note]) for note in notes) + "\n", encoding="utf-8")
-        self.assertEqual(run(), changed)
-
-    def test_gitlab_issue_plan_requires_valid_source_digest(self):
-        content = self.plan.read_text(encoding="utf-8")
-        content = content.replace("Source: approved artifact", "Source: https://gitlab.com/acme/sub/project/-/issues/7")
-        content = content.replace("Source digest: sha256:" + "a" * 64 + "\n", "")
-        self.plan.write_text(content, encoding="utf-8")
-        self.assertIn("Issue plans require", self.task("validate", ok=False)["error"])
-
-
 class OverlapTests(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()

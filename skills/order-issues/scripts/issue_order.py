@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Dependency order for open GitHub or GitLab issues. Read-only; stdlib only, Python 3.10+.
+"""Dependency order for open GitHub issues. Read-only; stdlib only, Python 3.10+.
 
-Input is `gh issue list --state open --json number,title,body` output, or
-`glab issue list --output json` output (`iid` and `description` are read as the
-issue number and body; the global `id` is ignored). Declared
+Input is `gh issue list --state open --json number,title,body` output. Declared
 dependencies are read from `Depends on: #N` and `Blocked by #N` lines in issue
 bodies; `--depends` and `--conflict` add edges the agent inferred. A dependency
 on an issue that is not open counts as satisfied and is reported under `external`.
@@ -41,39 +39,15 @@ def declared(body):
     return refs
 
 
-def loads_pages(text):
-    """Parse JSON; join concatenated arrays (`glab api --paginate` prints one per page)."""
-    decoder, values, index = json.JSONDecoder(), [], 0
-    while True:
-        while index < len(text) and text[index].isspace():
-            index += 1
-        if index == len(text):
-            break
-        value, index = decoder.raw_decode(text, index)
-        values.append(value)
-    if len(values) == 1:
-        return values[0]
-    if values and all(isinstance(value, list) for value in values):
-        return [item for value in values for item in value]
-    raise ValueError("expected one JSON value or concatenated JSON arrays")
-
-
 def load_issues(path):
     try:
         text = sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
-        issues = loads_pages(text)
+        issues = json.loads(text)
     except (OSError, ValueError) as exc:
         raise OrderError(f"Invalid issue list {path}: {exc}")
-    if not isinstance(issues, list) or not all(
-        isinstance(item, dict) and ("number" in item or "iid" in item) for item in issues
-    ):
-        raise OrderError("Issue list must be a JSON array of objects with `number` (GitHub) or `iid` (GitLab)")
-    result = {}
-    for item in issues:
-        number = int(item["number"] if "number" in item else item["iid"])
-        body = item["body"] if "body" in item else item.get("description")
-        result[number] = {**item, "body": body}
-    return result
+    if not isinstance(issues, list) or not all(isinstance(item, dict) and "number" in item for item in issues):
+        raise OrderError("Issue list must be a JSON array of objects with `number`")
+    return {int(item["number"]): item for item in issues}
 
 
 def components(nodes, links):
@@ -219,7 +193,7 @@ def render(result):
 
 def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--issues", required=True, help="gh or glab issue list JSON path, or - for stdin")
+    parser.add_argument("--issues", required=True, help="gh issue list JSON path, or - for stdin")
     parser.add_argument("--depends", type=pair, action="append", default=[], metavar="N:M",
                         help="issue N depends on issue M (inferred edge)")
     parser.add_argument("--conflict", type=pair, action="append", default=[], metavar="N:M",

@@ -34,7 +34,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
             content = PLAN_TEMPLATE.read_text(encoding="utf-8")
             content = content.replace("Plan approval: draft", "Plan approval: approved")
             content = content.replace(
-                "Source digest: <sha256:... for issue content; omit for immutable local documents>",
+                "Source digest: <sha256:... for GitHub issue content; omit for immutable local documents>",
                 "Source digest: sha256:" + "b" * 64,
             )
             plan.write_text(content, encoding="utf-8")

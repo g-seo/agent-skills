@@ -19,7 +19,7 @@ Stage fields:
 - `id`: unique lowercase name.
 - `skill`: a sibling skill directory name, or `builtin:precheck` (a closed issue, an open linked PR, open dependencies or another session's lease stops the issue).
 - `gate`: `approval` requires the user's approval in the session before the stage runs or completes; `none` runs without asking.
-- `access`: `read` (no writes), `local-write` (worktree and Git metadata only), `remote` (GitHub, GitLab, Notion or other external writes). Every `remote` stage must have `gate: approval`.
+- `access`: `read` (no writes), `local-write` (worktree and Git metadata only), `remote` (GitHub, Notion or other external writes). Every `remote` stage must have `gate: approval`.
 - `modifies-code`: the stage can change tracked files. A later `verifies` stage, or the stage itself, must verify the change before any `remote` stage.
 - `verifies`: the stage runs the plan's verification and records evidence.
 - `optional`: the stage may be skipped; skipping it does not block later stages.
