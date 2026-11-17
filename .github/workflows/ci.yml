@@ -19,5 +19,7 @@ jobs:
         run: python3 -m unittest discover -s skills/execute-tasks/tests -p 'test_*.py' -v
       - name: Run issue order tests
         run: python3 -m unittest discover -s skills/order-issues/tests -p 'test_*.py' -v
+      - name: Run skill selection eval tests
+        run: python3 -m unittest discover -s evals/skill-selection/tests -p 'test_*.py' -v
       - name: Compile scripts
         run: python3 -m py_compile skills/execute-tasks/scripts/taskctl.py skills/order-issues/scripts/issue_order.py

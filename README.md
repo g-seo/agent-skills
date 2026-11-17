@@ -132,6 +132,20 @@ $create-pr
 - PR 전에 변경을 복습하려면 `$explain-diff`를 실행한다. 학습 자료일 뿐 검증이나 승인을 대신하지 않는다.
 - `$work-issue`의 단계(`precheck → plan → execute → explain(선택) → pr`)는 저장소의 `.agent-workflow/pipeline.json`으로 바꿀 수 있다. 형식은 [stage-contract.md](skills/work-issue/references/stage-contract.md)를 참고한다.
 
+## 스킬 선택 평가
+
+[evals/skill-selection/](evals/skill-selection/)은 Claude Code가 요청에 맞는 스킬을 고르는지 측정한다. 지표는 [METRICS.md](evals/skill-selection/METRICS.md), 결과는 [REPORT.md](evals/skill-selection/REPORT.md)에 있다. 기준선은 40개 요청 × 3회에서 120/120이다.
+
+```bash
+python3 -m unittest discover -s evals/skill-selection/tests -p 'test_*.py' -v   # 단위 테스트, CLI 호출 없음
+python3 evals/skill-selection/run_eval.py --preflight --out /tmp/preflight.jsonl # 실제 1회 사전 점검
+python3 evals/skill-selection/run_eval.py --out evals/skill-selection/results/<name>.jsonl
+python3 evals/skill-selection/score.py evals/skill-selection/results/<name>.jsonl
+```
+
+- `run_eval.py`는 저장소 밖의 빈 Git 저장소에서 `claude -p`를 실행하고 첫 `Skill` 호출을 기록한다. 이 checkout의 `skills/`를 측정하도록 `--setting-sources project`로 `~/.claude/skills`를 제외한다.
+- 첫 실행 뒤에는 요청과 기대값을 바꾸지 않는다. 바꿔야 하면 `evals/skill-selection/CHANGELOG.md`에 이유를 기록한다.
+
 ## 규칙
 
 - Issue 생성, push, PR 생성, 댓글, merge에는 각각 사용자 승인이 필요하다. 스킬은 merge하지 않는다.
