@@ -11,7 +11,22 @@ sys.path.insert(0, str(ROOT))
 
 import dataset  # noqa: E402
 
-TEMPLATE = dataset.load(ROOT / "dataset.jsonl")
+DATASET = dataset.load(ROOT / "dataset.jsonl")
+
+
+def blank(entries):
+    entries = copy.deepcopy(entries)
+    for e in entries:
+        e["request"] = ""
+    return entries
+
+
+# The committed dataset with every request emptied, as the template was committed.
+TEMPLATE = blank(DATASET)
+
+
+def write_jsonl(path, entries):
+    path.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
 
 
 def filled(entries=TEMPLATE):
@@ -37,6 +52,9 @@ class DatasetCheckTests(unittest.TestCase):
 
     def test_filled_dataset_passes_strict(self):
         self.assertEqual(dataset.check(filled(), strict=True), [])
+
+    def test_committed_dataset_passes_strict(self):
+        self.assertEqual(dataset.check(DATASET, strict=True), [])
 
     def test_whitespace_request_fails_strict(self):
         entries = filled()
@@ -107,10 +125,19 @@ class DatasetCheckTests(unittest.TestCase):
         ok = subprocess.run([sys.executable, str(script), "--check", str(ROOT / "dataset.jsonl")],
                             capture_output=True, text=True)
         self.assertEqual(ok.returncode, 0, ok.stderr)
-        bad = subprocess.run([sys.executable, str(script), "--check", str(ROOT / "dataset.jsonl"), "--strict"],
-                             capture_output=True, text=True)
-        self.assertEqual(bad.returncode, 1)
-        self.assertFalse(json.loads(bad.stderr)["ok"])
+        strict = subprocess.run([sys.executable, str(script), "--check", str(ROOT / "dataset.jsonl"), "--strict"],
+                                capture_output=True, text=True)
+        self.assertEqual(strict.returncode, 0, strict.stderr)
+        with tempfile.TemporaryDirectory() as tmp:
+            template = Path(tmp) / "template.jsonl"
+            write_jsonl(template, TEMPLATE)
+            ok = subprocess.run([sys.executable, str(script), "--check", str(template)],
+                                capture_output=True, text=True)
+            self.assertEqual(ok.returncode, 0, ok.stderr)
+            bad = subprocess.run([sys.executable, str(script), "--check", str(template), "--strict"],
+                                 capture_output=True, text=True)
+            self.assertEqual(bad.returncode, 1)
+            self.assertFalse(json.loads(bad.stderr)["ok"])
 
     def test_invalid_json_line_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:

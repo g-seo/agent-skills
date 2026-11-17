@@ -231,8 +231,12 @@ class RunOnceTests(unittest.TestCase):
 class MainTests(unittest.TestCase):
     def test_refuses_dataset_with_empty_requests(self):
         with tempfile.TemporaryDirectory() as tmp:
+            template = Path(tmp) / "template.jsonl"
+            entries = [json.loads(l) for l in (ROOT / "dataset.jsonl").read_text(encoding="utf-8").splitlines()]
+            template.write_text("".join(json.dumps(dict(e, request="")) + "\n" for e in entries), encoding="utf-8")
             result = subprocess.run([sys.executable, str(ROOT / "run_eval.py"), "--out", str(Path(tmp) / "o.jsonl"),
-                                     "--claude-bin", "/bin/false"], capture_output=True, text=True)
+                                     "--dataset", str(template), "--claude-bin", "/bin/false"],
+                                    capture_output=True, text=True)
             self.assertEqual(result.returncode, 2)
             self.assertEqual(json.loads(result.stderr)["stage"], "dataset")
             self.assertFalse((Path(tmp) / "o.jsonl").exists())
