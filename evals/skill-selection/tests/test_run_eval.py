@@ -241,6 +241,19 @@ class MainTests(unittest.TestCase):
             self.assertEqual(json.loads(result.stderr)["stage"], "dataset")
             self.assertFalse((Path(tmp) / "o.jsonl").exists())
 
+    def test_failed_run_goes_to_errors_file_and_stops(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "o.jsonl"
+            result = subprocess.run([sys.executable, str(ROOT / "run_eval.py"), "--out", str(out),
+                                     "--ids", "general-1", "general-2", "--practice-dir", str(Path(tmp) / "practice"),
+                                     "--claude-bin", "/bin/false"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 5, result.stderr)
+            self.assertEqual(json.loads(result.stderr.strip().splitlines()[-1])["stage"], "run")
+            self.assertEqual(out.read_text(encoding="utf-8") if out.exists() else "", "")
+            errors = (Path(tmp) / "o.errors.jsonl").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(errors), 1)
+            self.assertEqual(json.loads(errors[0])["selection"], "error")
+
 
 if __name__ == "__main__":
     unittest.main()

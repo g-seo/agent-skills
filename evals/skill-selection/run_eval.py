@@ -317,6 +317,11 @@ def make_record(entry_id, repetition, outcome, *, model, effort, hashes):
 
 # ---------------------------------------------------------------- main
 
+def errors_path(out):
+    out = Path(out)
+    return out.with_name(out.stem + ".errors.jsonl")
+
+
 def done_keys(path):
     keys = set()
     if Path(path).exists():
@@ -379,13 +384,21 @@ def main(argv=None):
                                 budget_usd=args.budget_usd, claude_bin=args.claude_bin)
             outcome = run_once(cmd, practice, timeout_s=args.timeout, stop_early=not args.preflight)
             record = make_record(entry["id"], rep, outcome, model=args.model, effort=args.effort, hashes=hashes)
+            print(json.dumps({"id": entry["id"], "rep": rep, "selection": record["selection"],
+                              "wall_ms": record["wall_ms"], "cost": record["total_cost_usd"]},
+                             ensure_ascii=False), flush=True)
+            if record["error"]:
+                # Keep failed runs (for example a usage limit) out of the results so a resumed
+                # run retries them, record them in a side file, and stop at the first failure.
+                with open(errors_path(args.out), "a", encoding="utf-8") as err:
+                    err.write(json.dumps(dict(record, stderr_tail=outcome["stderr_tail"]), ensure_ascii=False) + "\n")
+                print(json.dumps({"ok": False, "stage": "run", "error": record["error"], "runs": ran,
+                                  "errors_file": str(errors_path(args.out))}), file=sys.stderr)
+                return 5
             out.write(json.dumps(record, ensure_ascii=False) + "\n")
             out.flush()
             ran += 1
             pre = preflight_errors(outcome["parser"].init, required_skills=required, forbidden_skills=forbidden)
-            print(json.dumps({"id": entry["id"], "rep": rep, "selection": record["selection"],
-                              "wall_ms": record["wall_ms"], "cost": record["total_cost_usd"]},
-                             ensure_ascii=False), flush=True)
             if pre:
                 print(json.dumps({"ok": False, "stage": "preflight", "errors": pre,
                                   "stderr_tail": outcome["stderr_tail"]}, ensure_ascii=False), file=sys.stderr)
