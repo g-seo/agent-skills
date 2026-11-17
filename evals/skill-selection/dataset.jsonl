@@ -1,0 +1,40 @@
+{"id": "cleanup-branch-p1", "category": "positive", "expected": "cleanup-branch", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "cleanup-branch-p2", "category": "positive", "expected": "cleanup-branch", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "cleanup-branch-near", "category": "near", "expected": "none", "related": "cleanup-branch", "split": "tuning", "request": "", "notes": "Close to cleanup-branch but must not select any skill."}
+{"id": "contribute-p1", "category": "positive", "expected": "contribute", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "contribute-p2", "category": "positive", "expected": "contribute", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "contribute-near", "category": "near", "expected": "none", "related": "contribute", "split": "validation", "request": "", "notes": "Close to contribute but must not select any skill."}
+{"id": "create-pr-p1", "category": "positive", "expected": "create-pr", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "create-pr-p2", "category": "positive", "expected": "create-pr", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "create-pr-near", "category": "near", "expected": "none", "related": "create-pr", "split": "tuning", "request": "", "notes": "Close to create-pr but must not select any skill."}
+{"id": "execute-tasks-p1", "category": "positive", "expected": "execute-tasks", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "execute-tasks-p2", "category": "positive", "expected": "execute-tasks", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "execute-tasks-near", "category": "near", "expected": "none", "related": "execute-tasks", "split": "tuning", "request": "", "notes": "Close to execute-tasks but must not select any skill."}
+{"id": "init-project-p1", "category": "positive", "expected": "init-project", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "init-project-p2", "category": "positive", "expected": "init-project", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "init-project-near", "category": "near", "expected": "none", "related": "init-project", "split": "tuning", "request": "", "notes": "Close to init-project but must not select any skill."}
+{"id": "order-issues-p1", "category": "positive", "expected": "order-issues", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "order-issues-p2", "category": "positive", "expected": "order-issues", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "order-issues-near", "category": "near", "expected": "none", "related": "order-issues", "split": "validation", "request": "", "notes": "Close to order-issues but must not select any skill."}
+{"id": "plan-change-p1", "category": "positive", "expected": "plan-change", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "plan-change-p2", "category": "positive", "expected": "plan-change", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "plan-change-near", "category": "near", "expected": "none", "related": "plan-change", "split": "tuning", "request": "", "notes": "Close to plan-change but must not select any skill."}
+{"id": "plan-tasks-p1", "category": "positive", "expected": "plan-tasks", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "plan-tasks-p2", "category": "positive", "expected": "plan-tasks", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "plan-tasks-near", "category": "near", "expected": "none", "related": "plan-tasks", "split": "tuning", "request": "", "notes": "Close to plan-tasks but must not select any skill."}
+{"id": "repair-pr-p1", "category": "positive", "expected": "repair-pr", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "repair-pr-p2", "category": "positive", "expected": "repair-pr", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "repair-pr-near", "category": "near", "expected": "none", "related": "repair-pr", "split": "validation", "request": "", "notes": "Close to repair-pr but must not select any skill."}
+{"id": "write-ste-p1", "category": "positive", "expected": "write-ste", "related": null, "split": "tuning", "request": "", "notes": ""}
+{"id": "write-ste-p2", "category": "positive", "expected": "write-ste", "related": null, "split": "validation", "request": "", "notes": ""}
+{"id": "write-ste-near", "category": "near", "expected": "none", "related": "write-ste", "split": "tuning", "request": "", "notes": "Close to write-ste but must not select any skill."}
+{"id": "general-1", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
+{"id": "general-2", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
+{"id": "general-3", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
+{"id": "general-4", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
+{"id": "general-5", "category": "general", "expected": "none", "related": null, "split": "validation", "request": "", "notes": "General request; must not select any skill."}
+{"id": "general-6", "category": "general", "expected": "none", "related": null, "split": "validation", "request": "", "notes": "General request; must not select any skill."}
+{"id": "confusion-plan-tasks-vs-plan-change", "category": "confusion", "expected": "plan-tasks", "related": "plan-change", "split": "tuning", "request": "", "notes": "Must select plan-tasks, not plan-change."}
+{"id": "confusion-contribute-vs-plan-change", "category": "confusion", "expected": "contribute", "related": "plan-change", "split": "tuning", "request": "", "notes": "Must select contribute, not plan-change."}
+{"id": "confusion-repair-pr-vs-create-pr", "category": "confusion", "expected": "repair-pr", "related": "create-pr", "split": "tuning", "request": "", "notes": "Must select repair-pr, not create-pr."}
+{"id": "confusion-execute-tasks-vs-plan-tasks", "category": "confusion", "expected": "execute-tasks", "related": "plan-tasks", "split": "validation", "request": "", "notes": "Must select execute-tasks, not plan-tasks."}
