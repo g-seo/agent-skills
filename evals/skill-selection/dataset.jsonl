@@ -1,40 +1,40 @@
-{"id": "cleanup-branch-p1", "category": "positive", "expected": "cleanup-branch", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "cleanup-branch-p2", "category": "positive", "expected": "cleanup-branch", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "cleanup-branch-near", "category": "near", "expected": "none", "related": "cleanup-branch", "split": "tuning", "request": "", "notes": "Close to cleanup-branch but must not select any skill."}
-{"id": "contribute-p1", "category": "positive", "expected": "contribute", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "contribute-p2", "category": "positive", "expected": "contribute", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "contribute-near", "category": "near", "expected": "none", "related": "contribute", "split": "validation", "request": "", "notes": "Close to contribute but must not select any skill."}
-{"id": "create-pr-p1", "category": "positive", "expected": "create-pr", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "create-pr-p2", "category": "positive", "expected": "create-pr", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "create-pr-near", "category": "near", "expected": "none", "related": "create-pr", "split": "tuning", "request": "", "notes": "Close to create-pr but must not select any skill."}
-{"id": "execute-tasks-p1", "category": "positive", "expected": "execute-tasks", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "execute-tasks-p2", "category": "positive", "expected": "execute-tasks", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "execute-tasks-near", "category": "near", "expected": "none", "related": "execute-tasks", "split": "tuning", "request": "", "notes": "Close to execute-tasks but must not select any skill."}
-{"id": "init-project-p1", "category": "positive", "expected": "init-project", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "init-project-p2", "category": "positive", "expected": "init-project", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "init-project-near", "category": "near", "expected": "none", "related": "init-project", "split": "tuning", "request": "", "notes": "Close to init-project but must not select any skill."}
-{"id": "order-issues-p1", "category": "positive", "expected": "order-issues", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "order-issues-p2", "category": "positive", "expected": "order-issues", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "order-issues-near", "category": "near", "expected": "none", "related": "order-issues", "split": "validation", "request": "", "notes": "Close to order-issues but must not select any skill."}
-{"id": "plan-change-p1", "category": "positive", "expected": "plan-change", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "plan-change-p2", "category": "positive", "expected": "plan-change", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "plan-change-near", "category": "near", "expected": "none", "related": "plan-change", "split": "tuning", "request": "", "notes": "Close to plan-change but must not select any skill."}
-{"id": "plan-tasks-p1", "category": "positive", "expected": "plan-tasks", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "plan-tasks-p2", "category": "positive", "expected": "plan-tasks", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "plan-tasks-near", "category": "near", "expected": "none", "related": "plan-tasks", "split": "tuning", "request": "", "notes": "Close to plan-tasks but must not select any skill."}
-{"id": "repair-pr-p1", "category": "positive", "expected": "repair-pr", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "repair-pr-p2", "category": "positive", "expected": "repair-pr", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "repair-pr-near", "category": "near", "expected": "none", "related": "repair-pr", "split": "validation", "request": "", "notes": "Close to repair-pr but must not select any skill."}
-{"id": "write-ste-p1", "category": "positive", "expected": "write-ste", "related": null, "split": "tuning", "request": "", "notes": ""}
-{"id": "write-ste-p2", "category": "positive", "expected": "write-ste", "related": null, "split": "validation", "request": "", "notes": ""}
-{"id": "write-ste-near", "category": "near", "expected": "none", "related": "write-ste", "split": "tuning", "request": "", "notes": "Close to write-ste but must not select any skill."}
-{"id": "general-1", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
-{"id": "general-2", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
-{"id": "general-3", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
-{"id": "general-4", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "", "notes": "General request; must not select any skill."}
-{"id": "general-5", "category": "general", "expected": "none", "related": null, "split": "validation", "request": "", "notes": "General request; must not select any skill."}
-{"id": "general-6", "category": "general", "expected": "none", "related": null, "split": "validation", "request": "", "notes": "General request; must not select any skill."}
-{"id": "confusion-plan-tasks-vs-plan-change", "category": "confusion", "expected": "plan-tasks", "related": "plan-change", "split": "tuning", "request": "", "notes": "Must select plan-tasks, not plan-change."}
-{"id": "confusion-contribute-vs-plan-change", "category": "confusion", "expected": "contribute", "related": "plan-change", "split": "tuning", "request": "", "notes": "Must select contribute, not plan-change."}
-{"id": "confusion-repair-pr-vs-create-pr", "category": "confusion", "expected": "repair-pr", "related": "create-pr", "split": "tuning", "request": "", "notes": "Must select repair-pr, not create-pr."}
-{"id": "confusion-execute-tasks-vs-plan-tasks", "category": "confusion", "expected": "execute-tasks", "related": "plan-tasks", "split": "validation", "request": "", "notes": "Must select execute-tasks, not plan-tasks."}
+{"id": "cleanup-branch-p1", "category": "positive", "expected": "cleanup-branch", "related": null, "split": "tuning", "request": "PR #42 병합 완료. 그 PR에 쓰던 브랜치와 worktree를 정리해.", "notes": ""}
+{"id": "cleanup-branch-p2", "category": "positive", "expected": "cleanup-branch", "related": null, "split": "validation", "request": "쌓인 브랜치 정리하고 최신 main으로 돌아가.", "notes": ""}
+{"id": "cleanup-branch-near", "category": "near", "expected": "none", "related": "cleanup-branch", "split": "tuning", "request": "PR을 병합하면 내 로컬 브랜치도 자동으로 삭제되나?", "notes": "Close to cleanup-branch but must not select any skill."}
+{"id": "contribute-p1", "category": "positive", "expected": "contribute", "related": null, "split": "tuning", "request": "https://github.com/example/parser/issues/18에 기여하고 싶어. 코드와 이슈 논의를 보고 어떤 수정을 제안할지 정리해.", "notes": ""}
+{"id": "contribute-p2", "category": "positive", "expected": "contribute", "related": null, "split": "validation", "request": "포크 원본의 이슈 #73을 맡았어. 메인테이너의 요구사항을 지키려면 어디를 어떻게 고쳐야 할지 기여 계획을 잡아줘.", "notes": ""}
+{"id": "contribute-near", "category": "near", "expected": "none", "related": "contribute", "split": "validation", "request": "기여하려는 이슈에서 메인테이너가 버그 수정과 함께 회귀 테스트도 요청했어. 이미 고친 버그에 테스트를 추가하는 이유가 뭐야?", "notes": "Close to contribute but must not select any skill."}
+{"id": "create-pr-p1", "category": "positive", "expected": "create-pr", "related": null, "split": "tuning", "request": "현재 브랜치 변경의 테스트는 끝났어. push하고 main 대상으로 PR 만들어.", "notes": ""}
+{"id": "create-pr-p2", "category": "positive", "expected": "create-pr", "related": null, "split": "validation", "request": "내 포크의 fix/csv-header 브랜치 검증이 끝났어. 원본 저장소의 #18을 연결해서 PR 올려.", "notes": ""}
+{"id": "create-pr-near", "category": "near", "expected": "none", "related": "create-pr", "split": "tuning", "request": "이 브랜치에서 main으로 PR을 보낼 때 base는 어느 쪽이야?", "notes": "Close to create-pr but must not select any skill."}
+{"id": "execute-tasks-p1", "category": "positive", "expected": "execute-tasks", "related": null, "split": "tuning", "request": "승인된 docs/TASKS.md 순서대로 구현해. 각 작업은 테스트를 통과하면 커밋해.", "notes": ""}
+{"id": "execute-tasks-p2", "category": "positive", "expected": "execute-tasks", "related": null, "split": "validation", "request": "이슈 #31의 TASKS.md는 승인됐어, 진행 기록을 확인해서 남은 작업을 이어서 구현해.", "notes": ""}
+{"id": "execute-tasks-near", "category": "near", "expected": "none", "related": "execute-tasks", "split": "tuning", "request": "TASKS.md에서 아직 체크되지 않은 항목이 몇 개야?", "notes": "Close to execute-tasks but must not select any skill."}
+{"id": "init-project-p1", "category": "positive", "expected": "init-project", "related": null, "split": "tuning", "request": "새로운 서비스의 PROJECT_BRIEF.md를 바탕으로 PRD와 아키텍처를 작성해.", "notes": ""}
+{"id": "init-project-p2", "category": "positive", "expected": "init-project", "related": null, "split": "validation", "request": "아직 코드가 없는 영수증 정리 앱이야. PROJECT_BRIEF.md를 보고 출시 범위와 시스템 구조를 설계해.", "notes": ""}
+{"id": "init-project-near", "category": "near", "expected": "none", "related": "init-project", "split": "tuning", "request": "PROJECT_BRIEF.md와 PRD는 용도가 어떻게 달라?", "notes": "Close to init-project but must not select any skill."}
+{"id": "order-issues-p1", "category": "positive", "expected": "order-issues", "related": null, "split": "tuning", "request": "열린 이슈들의 선행 관계를 보고 어떤 순서로 작업해야 하는지 알려줘.", "notes": ""}
+{"id": "order-issues-p2", "category": "positive", "expected": "order-issues", "related": null, "split": "validation", "request": "터미널 두 개로 작업할 거야. 열린 이슈 중 지금 각각 시작할 수 있는 것과 병합을 기다려야 하는 것을 골라줘.", "notes": ""}
+{"id": "order-issues-near", "category": "near", "expected": "none", "related": "order-issues", "split": "validation", "request": "#12 본문에 Depends on: #8이라고 쓰면 어느 이슈가 선행이야?", "notes": "Close to order-issues but must not select any skill."}
+{"id": "plan-change-p1", "category": "positive", "expected": "plan-change", "related": null, "split": "tuning", "request": "기존 주문 API에서 취소한 주문이 목록에 남아. 코드를 조사하고 수정 방향이 정해지면 이슈로 등록해줘.", "notes": ""}
+{"id": "plan-change-p2", "category": "positive", "expected": "plan-change", "related": null, "split": "validation", "request": "지금은 탈퇴한 계정에도 알림 메일이 가. 발송 대상을 어디서 결정하는지 확인하고, 어느 단계에서 제외할지 같이 정해서 이슈로 남기자.", "notes": ""}
+{"id": "plan-change-near", "category": "near", "expected": "none", "related": "plan-change", "split": "tuning", "request": "검색 결과는 그대로인데 응답 시간을 줄이는 변경은 리팩터링이야, 성능 개선이야?", "notes": "Close to plan-change but must not select any skill."}
+{"id": "plan-tasks-p1", "category": "positive", "expected": "plan-tasks", "related": null, "split": "tuning", "request": "승인된 이슈 #28을 순서대로 구현할 수 있게 나눠. 각 작업이 끝났는지 확인할 테스트도 적어.", "notes": ""}
+{"id": "plan-tasks-p2", "category": "positive", "expected": "plan-tasks", "related": null, "split": "validation", "request": "CONTRIBUTION_PLAN.md의 수정안은 확정됐어. 이제 적합한 TASKS.md를 작성해.", "notes": ""}
+{"id": "plan-tasks-near", "category": "near", "expected": "none", "related": "plan-tasks", "split": "tuning", "request": "작업의 완료 조건이랑 검증 방법은 어떻게 달라?", "notes": "Close to plan-tasks but must not select any skill."}
+{"id": "repair-pr-p1", "category": "positive", "expected": "repair-pr", "related": null, "split": "tuning", "request": "PR #64에서 리뷰어가 빈 입력 처리 누락을 지적했어. 해당 케이스를 고치고 회귀 테스트와 함께 같은 PR에 반영해.", "notes": ""}
+{"id": "repair-pr-p2", "category": "positive", "expected": "repair-pr", "related": null, "split": "validation", "request": "main 변경으로 PR #82에 충돌이 났어. 충돌을 해결하고 테스트한 뒤 PR 브랜치에 올려줘.", "notes": ""}
+{"id": "repair-pr-near", "category": "near", "expected": "none", "related": "repair-pr", "split": "validation", "request": "PR에 Changes requested가 뜨면 무슨 뜻이야?", "notes": "Close to repair-pr but must not select any skill."}
+{"id": "write-ste-p1", "category": "positive", "expected": "write-ste", "related": null, "split": "tuning", "request": "README의 설치 절차를 처음 쓰는 사람도 따라갈 수 있게 다듬어. 명령어와 경로는 그대로 둬.", "notes": ""}
+{"id": "write-ste-p2", "category": "positive", "expected": "write-ste", "related": null, "split": "validation", "request": "이 영어 PR 본문에서 버그 원인과 수정 내용이 뒤섞여 있어. 둘이 구분되게 영어 문장을 다듬어.", "notes": ""}
+{"id": "write-ste-near", "category": "near", "expected": "none", "related": "write-ste", "split": "tuning", "request": "기술 문서에서 말하는 능동태가 뭐야?", "notes": "Close to write-ste but must not select any skill."}
+{"id": "general-1", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "파이썬에서 리스트의 중복을 순서대로 제거하는 한 줄 코드를 알려줘.", "notes": "General request; must not select any skill."}
+{"id": "general-2", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "평균보다 중앙값이 더 적절한 예시를 하나 들어줘.", "notes": "General request; must not select any skill."}
+{"id": "general-3", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "데이터베이스에 인덱스를 추가하면 조회는 빨라지는데 쓰기는 왜 느려질 수 있어?", "notes": "General request; must not select any skill."}
+{"id": "general-4", "category": "general", "expected": "none", "related": null, "split": "tuning", "request": "11월 17일 18:30 UTC는 한국 시간으로 며칠 몇 시야?", "notes": "General request; must not select any skill."}
+{"id": "general-5", "category": "general", "expected": "none", "related": null, "split": "validation", "request": "동전을 세 번 던져 앞면이 정확히 두 번 나올 확률을 구해줘.", "notes": "General request; must not select any skill."}
+{"id": "general-6", "category": "general", "expected": "none", "related": null, "split": "validation", "request": "90분짜리 강의를 1.5배속으로 보면 얼마나 걸려?", "notes": "General request; must not select any skill."}
+{"id": "confusion-plan-tasks-vs-plan-change", "category": "confusion", "expected": "plan-tasks", "related": "plan-change", "split": "tuning", "request": "검색 필터를 바꾸기로 했고 수정 범위도 이슈 #36에서 승인됐어. 그 범위를 기준으로 구현 순서와 단계별 통과 조건을 적어.", "notes": "Must select plan-tasks, not plan-change."}
+{"id": "confusion-contribute-vs-plan-change", "category": "confusion", "expected": "contribute", "related": "plan-change", "split": "tuning", "request": "CSV 파서가 빈 헤더에서 멈추는 원인을 조사해줘. 포크 원본의 이슈 #18에 기여하려는 거라, 그쪽 논의와 코드에 맞는 수정안을 준비하고 싶어.", "notes": "Must select contribute, not plan-change."}
+{"id": "confusion-repair-pr-vs-create-pr", "category": "confusion", "expected": "repair-pr", "related": "create-pr", "split": "tuning", "request": "#52 수정분을 올린 PR #61에서 CI가 깨졌어. 고쳐서 다시 올려줘.", "notes": "Must select repair-pr, not create-pr."}
+{"id": "confusion-execute-tasks-vs-plan-tasks", "category": "confusion", "expected": "execute-tasks", "related": "plan-tasks", "split": "validation", "request": "이슈 #27의 구현 순서와 완료 조건은 TASKS.md에 정리했어. 미완료 항목부터 작업해.", "notes": "Must select execute-tasks, not plan-tasks."}
